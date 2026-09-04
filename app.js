@@ -1327,20 +1327,14 @@ function openCheckoutModal() {
     
     const cardLast4Input = document.getElementById("card-last4");
     if (cardLast4Input) cardLast4Input.value = "";
-    
-    const cardRefInput = document.getElementById("card-ref-no");
-    if (cardRefInput) {
-        cardRefInput.readOnly = false;
-        cardRefInput.value = "";
-    }
 
     // Reset split fields
     const splitCashInput = document.getElementById("split-cash-amount");
     if (splitCashInput) splitCashInput.value = "";
     const splitCardBal = document.getElementById("split-card-balance");
     if (splitCardBal) splitCardBal.textContent = `LKR ${totals.grandTotal.toFixed(2)}`;
-    const splitCardRef = document.getElementById("split-card-ref");
-    if (splitCardRef) splitCardRef.value = "";
+    const splitCardLast4 = document.getElementById("split-card-last4");
+    if (splitCardLast4) splitCardLast4.value = "";
     const splitFields = document.getElementById("split-payment-fields");
     if (splitFields) splitFields.style.display = "none";
     
@@ -1418,12 +1412,6 @@ function setupCheckoutModalHandlers() {
                 
                 const viewManual = document.getElementById("card-manual-keyin-view");
                 if (viewManual) viewManual.style.display = "block";
-                
-                const cardRefInput = document.getElementById("card-ref-no");
-                if (cardRefInput) {
-                    cardRefInput.readOnly = false;
-                    cardRefInput.value = "";
-                }
             }
         });
     });
@@ -1444,13 +1432,13 @@ function setupCheckoutModalHandlers() {
         btn.addEventListener("click", () => {
             const val = btn.getAttribute("data-val");
             
-            if (currentPaymentMode === "card" && cardInputMode === "manual") {
-                const cardRefInput = document.getElementById("card-ref-no");
-                if (cardRefInput) {
+            if (currentPaymentMode === "card") {
+                const last4Input = document.getElementById("card-last4");
+                if (last4Input) {
                     if (val === "C") {
-                        cardRefInput.value = "";
-                    } else {
-                        cardRefInput.value += val;
+                        last4Input.value = "";
+                    } else if (last4Input.value.length < 4 && !isNaN(val)) {
+                        last4Input.value += val;
                     }
                 }
             } else {
@@ -1531,15 +1519,6 @@ function finalizeSaleCheckout() {
         return;
     }
 
-    if (currentPaymentMode === "card" && cardInputMode === "manual") {
-        const refNoVal = document.getElementById("card-ref-no").value.trim();
-        if (!refNoVal) {
-            alert("Please enter the Card Approval Reference Code manually from your card machine receipt.");
-            document.getElementById("card-ref-no").focus();
-            return;
-        }
-    }
-
     // Split payment validation
     let splitCashAmount = 0;
     let splitCardAmount = 0;
@@ -1608,8 +1587,8 @@ function finalizeSaleCheckout() {
         paymentMode: currentPaymentMode,
         cashTendered: currentPaymentMode === "cash" ? parsedTendered : (currentPaymentMode === "split" ? splitCashAmount : totals.grandTotal),
         changeDue: currentPaymentMode === "cash" ? Math.max(0, parsedTendered - totals.grandTotal) : 0,
-        refNo: currentPaymentMode === "card" ? (selectedCardBrand + " *" + (document.getElementById("card-last4").value.trim() || "XXXX") + " Ref: " + document.getElementById("card-ref-no").value.trim()) :
-               currentPaymentMode === "split" ? `Split: Cash LKR ${splitCashAmount.toFixed(2)} + Card LKR ${splitCardAmount.toFixed(2)} (*${document.getElementById("split-card-last4").value.trim() || "XXXX"} Ref: ${document.getElementById("split-card-ref").value.trim() || "ref pending"})` : "",
+        refNo: currentPaymentMode === "card" ? (selectedCardBrand + ((document.getElementById("card-last4") && document.getElementById("card-last4").value.trim()) ? " *" + document.getElementById("card-last4").value.trim() : "")) :
+               currentPaymentMode === "split" ? `Split: Cash LKR ${splitCashAmount.toFixed(2)} + Card LKR ${splitCardAmount.toFixed(2)}${(document.getElementById("split-card-last4") && document.getElementById("split-card-last4").value.trim()) ? ` (*${document.getElementById("split-card-last4").value.trim()})` : ""}` : "",
         customerPhone: customerPhone,
         note: orderNote || ""
     };
@@ -1838,8 +1817,8 @@ function printThermalReceiptPreview(txn) {
             </div>
             ` : `
             <div class="receipt-row">
-                <span>Card Approval Ref:</span>
-                <span>${txn.refNo}</span>
+                <span>Payment Details:</span>
+                <span>${txn.refNo || (txn.paymentMode === 'split' ? 'Split Payment' : 'Card Payment')}</span>
             </div>
             `}
         </div>

@@ -481,8 +481,8 @@
                             </div>
                         ` : `
                             <div class="total-row" style="font-size: 12px; margin-top: 6px; border-top: 1px dotted var(--border-color); padding-top: 6px;">
-                                <span>Card Reference</span>
-                                <strong style="color:var(--text-muted);">${txn.refNo || 'CRD-N/A'}</strong>
+                                <span>Payment Details</span>
+                                <strong style="color:var(--text-muted);">${txn.refNo || (txn.paymentMode === 'split' ? 'Split Payment' : 'Card Payment')}</strong>
                             </div>
                         `}
                     </div>
