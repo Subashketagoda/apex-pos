@@ -107,52 +107,51 @@ button, input, select {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 24px;
+    padding: 6px 16px;
     background: var(--bg-surface-glass);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--border-color);
-    backdrop-filter: blur(16px);
     z-index: 100;
-    height: 70px;
+    height: 52px;
 }
 
 /* Logo Details */
 .header-logo {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
 }
 .logo-icon-wrapper {
     background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
-    width: 38px;
-    height: 38px;
-    border-radius: var(--radius-sm);
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 0 15px rgba(16, 185, 129, 0.25);
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.25);
 }
 .logo-icon {
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
     color: #ffffff;
 }
 .logo-text h1 {
-    font-size: 18px;
+    font-size: 15px;
     font-weight: 800;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.4px;
     line-height: 1.1;
 }
 .logo-text h1 span {
     color: var(--color-primary);
 }
 .logo-text small {
-    font-size: 10px;
+    font-size: 9px;
     color: var(--text-muted);
     font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 0.8px;
 }
 
 /* Global Barcode Search in Header */
@@ -162,8 +161,8 @@ button, input, select {
     background: rgba(0, 0, 0, 0.2);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
-    padding: 2px 2px 2px 12px;
-    width: 320px;
+    padding: 2px 2px 2px 10px;
+    width: 240px;
     transition: var(--transition-fast);
 }
 .global-scanner:focus-within {
@@ -172,14 +171,14 @@ button, input, select {
     background: rgba(0, 0, 0, 0.35);
 }
 .scanner-icon {
-    width: 18px;
-    height: 18px;
+    width: 15px;
+    height: 15px;
     color: var(--text-muted);
 }
 .global-scanner input {
     width: 100%;
-    padding: 8px;
-    font-size: 13px;
+    padding: 5px 6px;
+    font-size: 12px;
     color: var(--text-main);
 }
 .global-scanner input::placeholder {
@@ -188,13 +187,13 @@ button, input, select {
 .btn-scanner-sim {
     background: rgba(255, 255, 255, 0.08);
     border: 1px solid var(--border-color);
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 5px;
+    font-size: 11px;
     font-weight: 600;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     cursor: pointer;
     transition: var(--transition-fast);
 }
@@ -203,8 +202,8 @@ button, input, select {
     color: var(--color-primary);
 }
 .btn-scanner-sim i {
-    width: 14px;
-    height: 14px;
+    width: 13px;
+    height: 13px;
 }
 
 /* Main Navigation Toggle Buttons */
@@ -212,24 +211,24 @@ button, input, select {
     display: flex;
     background: rgba(0, 0, 0, 0.15);
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    padding: 4px;
+    border-radius: var(--radius-sm);
+    padding: 3px;
 }
 .nav-btn {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 18px;
-    font-size: 14px;
+    gap: 6px;
+    padding: 5px 12px;
+    font-size: 12px;
     font-weight: 600;
-    border-radius: var(--radius-sm);
+    border-radius: 6px;
     cursor: pointer;
     transition: var(--transition-fast);
     color: var(--text-muted);
 }
 .nav-btn i {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
 }
 .nav-btn:hover {
     color: var(--text-main);
@@ -248,18 +247,18 @@ button, input, select {
 .header-status {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 12px;
 }
 .shift-info {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     border-right: 1px solid var(--border-color);
-    padding-right: 18px;
+    padding-right: 12px;
 }
 .badge-dot {
-    width: 8px;
-    height: 8px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
     background: var(--color-primary);
 }
@@ -276,11 +275,11 @@ button, input, select {
     flex-direction: column;
 }
 .shift-details span {
-    font-size: 13px;
+    font-size: 11.5px;
     font-weight: 600;
 }
 .shift-details small {
-    font-size: 11px;
+    font-size: 9.5px;
     color: var(--text-muted);
 }
 .time-widget {
@@ -289,12 +288,12 @@ button, input, select {
     align-items: flex-end;
 }
 .time-widget span {
-    font-size: 13px;
+    font-size: 11.5px;
     font-weight: 700;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
 }
 .time-widget small {
-    font-size: 11px;
+    font-size: 9.5px;
     color: var(--text-muted);
 }
 
@@ -304,7 +303,8 @@ button, input, select {
 .app-body {
     flex: 1;
     position: relative;
-    height: calc(100vh - 70px);
+    height: calc(100vh - 52px);
+    overflow: hidden;
 }
 
 .view-panel {
@@ -327,9 +327,10 @@ button, input, select {
    ========================================================================== */
 .cashier-layout {
     display: grid;
-    grid-template-columns: 1fr 420px;
+    grid-template-columns: 1fr 340px;
     height: 100%;
     width: 100%;
+    overflow: hidden;
 }
 
 /* Left catalog column */
@@ -338,23 +339,24 @@ button, input, select {
     flex-direction: column;
     background: rgba(0, 0, 0, 0.05);
     border-right: 1px solid var(--border-color);
-    padding: 16px;
+    padding: 8px 12px;
     overflow: hidden;
+    height: 100%;
 }
 
 /* Catalog Search input */
 .catalog-header {
-    margin-bottom: 12px;
+    margin-bottom: 8px;
 }
 .catalog-header .search-box {
     display: flex;
     align-items: center;
     background: var(--bg-surface);
     border: 1.5px solid var(--border-color);
-    border-radius: var(--radius-md);
-    padding: 6px 16px;
+    border-radius: var(--radius-sm);
+    padding: 4px 12px;
     width: 100%;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 .catalog-header .search-box:focus-within {
@@ -362,14 +364,14 @@ button, input, select {
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
 }
 .search-icon {
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
     color: var(--text-muted);
 }
 .catalog-header .search-box input {
     width: 100%;
-    padding: 8px 12px;
-    font-size: 15px;
+    padding: 5px 8px;
+    font-size: 13px;
     font-weight: 500;
     color: var(--text-main);
 }
@@ -378,22 +380,22 @@ button, input, select {
     font-weight: 500;
 }
 .clear-search {
-    font-size: 20px;
+    font-size: 16px;
     color: var(--text-muted);
     cursor: pointer;
-    padding: 4px;
+    padding: 2px;
 }
 
 /* Categories horizontal strip */
 .category-tabs {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     overflow-x: auto;
-    padding-bottom: 12px;
-    margin-bottom: 12px;
+    padding-bottom: 6px;
+    margin-bottom: 8px;
 }
 .category-tabs::-webkit-scrollbar {
-    height: 4px;
+    height: 3px;
 }
 .category-tabs::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.15);
@@ -403,9 +405,9 @@ button, input, select {
     background: var(--bg-surface);
     border: 1.5px solid var(--border-color);
     color: #cbd5e1;
-    padding: 9px 18px;
-    border-radius: 20px;
-    font-size: 14px;
+    padding: 5px 12px;
+    border-radius: 16px;
+    font-size: 12px;
     font-weight: 700;
     cursor: pointer;
     white-space: nowrap;
@@ -420,7 +422,7 @@ button, input, select {
     background: var(--color-primary);
     border-color: var(--color-primary);
     color: #ffffff;
-    box-shadow: 0 2px 10px rgba(16, 185, 129, 0.4);
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
 }
 
 /* Products Grid scroll area */
@@ -431,31 +433,31 @@ button, input, select {
 }
 .products-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(195px, 1fr));
-    gap: 16px;
-    padding-bottom: 24px;
+    grid-template-columns: repeat(auto-fill, minmax(125px, 1fr));
+    gap: 8px;
+    padding-bottom: 16px;
 }
 
 /* Product Card Styling */
 .product-card {
     background: #151e34;
     border: 1.5px solid var(--border-color);
-    border-radius: var(--radius-md);
-    padding: 14px;
+    border-radius: 10px;
+    padding: 7px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 5px;
     cursor: pointer;
     user-select: none;
     position: relative;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
-    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+    transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
 }
 .product-card:hover {
     background: #1c2744;
     border-color: var(--color-info);
-    transform: translateY(-3px);
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45), 0 0 16px rgba(56, 189, 248, 0.25);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4), 0 0 12px rgba(56, 189, 248, 0.2);
 }
 .product-card:active {
     transform: scale(0.97);
@@ -463,8 +465,8 @@ button, input, select {
 
 /* Image graphic representation inside cards */
 .product-image-placeholder {
-    height: 110px;
-    border-radius: var(--radius-sm);
+    height: 64px;
+    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -475,41 +477,41 @@ button, input, select {
 }
 .product-category-tag {
     position: absolute;
-    top: 6px;
-    left: 6px;
+    top: 4px;
+    left: 4px;
     background: rgba(15, 23, 42, 0.88);
     border: 1px solid rgba(255, 255, 255, 0.18);
-    padding: 3px 8px;
-    border-radius: 6px;
-    font-size: 10px;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-size: 8.5px;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.4px;
     color: #e2e8f0;
 }
 .product-code-tag {
     position: absolute;
-    bottom: 6px;
-    right: 6px;
+    bottom: 4px;
+    right: 4px;
     background: rgba(0, 0, 0, 0.75);
     border: 1px solid rgba(255, 255, 255, 0.12);
     color: #ffffff;
     font-family: monospace;
-    font-size: 11px;
+    font-size: 9px;
     font-weight: 700;
-    padding: 2px 6px;
-    border-radius: 4px;
+    padding: 1px 4px;
+    border-radius: 3px;
 }
 .product-stock-pill {
     position: absolute;
-    top: 6px;
-    right: 6px;
-    font-size: 11px;
+    top: 4px;
+    right: 4px;
+    font-size: 9px;
     font-weight: 700;
-    padding: 3px 8px;
-    border-radius: 6px;
+    padding: 2px 5px;
+    border-radius: 4px;
     z-index: 2;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
 }
 .product-stock-pill.in-stock {
     background: rgba(15, 23, 42, 0.88);
@@ -529,14 +531,15 @@ button, input, select {
 .product-details {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
 }
 .product-title {
-    font-size: 15px;
+    font-size: 11.5px;
     font-weight: 700;
     color: #ffffff;
-    line-height: 1.35;
-    min-height: 40px;
+    line-height: 1.25;
+    min-height: 28px;
+    max-height: 30px;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -545,20 +548,20 @@ button, input, select {
 .product-price-row {
     display: flex;
     align-items: baseline;
-    gap: 4px;
-    margin-top: 2px;
+    gap: 3px;
+    margin-top: 1px;
 }
 .product-currency {
-    font-size: 12px;
+    font-size: 10px;
     font-weight: 700;
     color: #34d399;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
 }
 .product-price {
-    font-size: 19px;
+    font-size: 13.5px;
     font-weight: 800;
     color: #34d399;
-    letter-spacing: -0.5px;
+    letter-spacing: -0.3px;
 }
 
 /* Inventory stock display bar in cashier card */
@@ -637,43 +640,45 @@ button, input, select {
     background: var(--bg-surface);
     border-left: 1px solid var(--border-color);
     box-shadow: var(--shadow-lg);
+    height: 100%;
+    overflow: hidden;
 }
 
 .cart-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 20px;
+    padding: 8px 12px;
     border-bottom: 1px solid var(--border-color);
     background: rgba(0, 0, 0, 0.1);
 }
 .cart-title {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 .cart-title-icon {
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
     color: var(--color-primary);
 }
 .cart-title h3 {
-    font-size: 15px;
+    font-size: 13px;
     font-weight: 700;
 }
 .cart-count-badge {
     background: rgba(16, 185, 129, 0.15);
     color: var(--color-primary);
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-size: 10px;
     font-weight: 700;
 }
 .btn-icon-danger {
     color: var(--text-muted);
     cursor: pointer;
-    padding: 6px;
-    border-radius: 6px;
+    padding: 4px;
+    border-radius: 4px;
     transition: var(--transition-fast);
 }
 .btn-icon-danger:hover {
@@ -681,15 +686,15 @@ button, input, select {
     color: var(--color-danger);
 }
 .btn-icon-danger i {
-    width: 18px;
-    height: 18px;
+    width: 15px;
+    height: 15px;
 }
 
 /* Scrollable area inside cart list */
 .cart-items-wrapper {
     flex: 1;
     overflow-y: auto;
-    padding: 8px 12px;
+    padding: 6px 8px;
 }
 
 .cart-empty-state {
@@ -699,18 +704,18 @@ button, input, select {
     justify-content: center;
     height: 100%;
     color: var(--text-muted);
-    gap: 8px;
+    gap: 6px;
     text-align: center;
-    padding: 40px 0;
+    padding: 24px 0;
 }
 .cart-empty-state i {
-    width: 48px;
-    height: 48px;
+    width: 36px;
+    height: 36px;
     opacity: 0.25;
 }
 .cart-empty-state p {
     font-weight: 600;
-    font-size: 14px;
+    font-size: 13px;
 }
 
 /* Cart item rows */
@@ -718,12 +723,12 @@ button, input, select {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 10px;
+    padding: 5px 8px;
     background: #162036;
-    border: 1.5px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    margin-bottom: 8px;
-    gap: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    margin-bottom: 4px;
+    gap: 6px;
     animation: slideInCart 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 @keyframes slideInCart {
@@ -738,7 +743,7 @@ button, input, select {
     min-width: 0;
 }
 .cart-item-name {
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 700;
     color: #ffffff;
     white-space: nowrap;
@@ -746,16 +751,16 @@ button, input, select {
     text-overflow: ellipsis;
 }
 .cart-item-subtext {
-    font-size: 12px;
+    font-size: 10px;
     color: #94a3b8;
     font-weight: 600;
 }
 .cart-item-price-sum {
-    font-size: 15px;
+    font-size: 12.5px;
     font-weight: 800;
     color: #34d399;
     text-align: right;
-    width: 95px;
+    width: 72px;
     white-space: nowrap;
 }
 
@@ -764,20 +769,20 @@ button, input, select {
     display: flex;
     align-items: center;
     background: #0f172a;
-    border: 1.5px solid var(--border-color);
-    border-radius: 8px;
-    padding: 2px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 1px;
 }
 .qty-btn {
-    width: 30px;
-    height: 30px;
+    width: 22px;
+    height: 22px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    font-size: 16px;
+    font-size: 13px;
     font-weight: 800;
-    border-radius: 6px;
+    border-radius: 4px;
     color: #ffffff;
     background: rgba(255, 255, 255, 0.08);
     transition: var(--transition-fast);
@@ -787,58 +792,58 @@ button, input, select {
     color: #ffffff;
 }
 .qty-input {
-    width: 32px;
+    width: 24px;
     text-align: center;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 800;
     color: #ffffff;
 }
 .btn-qty-delete {
     color: var(--text-muted);
     cursor: pointer;
-    padding: 6px;
+    padding: 3px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 6px;
+    border-radius: 4px;
 }
 .btn-qty-delete:hover {
     background: rgba(239, 68, 68, 0.15);
     color: var(--color-danger);
 }
 .btn-qty-delete i {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
 }
 
 /* Cart Summary & Total Calculations Wrapper */
 .cart-footer {
-    padding: 16px 20px 20px 20px;
+    padding: 6px 10px 8px 10px;
     border-top: 1.5px solid var(--border-color);
     background: rgba(0, 0, 0, 0.25);
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 3px;
 }
 
 .summary-line {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 14px;
+    font-size: 12px;
     color: #cbd5e1;
     font-weight: 600;
 }
 .summary-val {
     font-weight: 700;
     color: #ffffff;
-    font-size: 14px;
+    font-size: 12px;
 }
 .border-top {
     border-top: 1px solid var(--border-color);
 }
 .pt-2 {
-    padding-top: 8px;
+    padding-top: 4px;
 }
 .text-success {
     color: var(--color-primary) !important;
@@ -847,7 +852,7 @@ button, input, select {
     color: var(--text-muted);
 }
 .small {
-    font-size: 12px;
+    font-size: 11px;
 }
 
 .tax-info-tooltip {
@@ -870,15 +875,15 @@ button, input, select {
     display: flex;
     align-items: center;
     background: rgba(0, 0, 0, 0.3);
-    border: 1.5px solid var(--border-color);
-    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
     overflow: hidden;
-    height: 28px;
-    max-width: 110px;
+    height: 24px;
+    max-width: 90px;
 }
 .discount-input {
     width: 100%;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
     text-align: center;
     padding: 0 4px;
@@ -888,8 +893,8 @@ button, input, select {
     background: rgba(255, 255, 255, 0.08);
     border-left: 1px solid var(--border-color);
     height: 100%;
-    width: 34px;
-    font-size: 12px;
+    width: 26px;
+    font-size: 11px;
     font-weight: 800;
     cursor: pointer;
     color: var(--color-primary);
@@ -897,38 +902,38 @@ button, input, select {
 
 /* Grand Total highlight wrapper */
 .grand-total-line {
-    font-size: 18px;
+    font-size: 13px;
     color: #ffffff;
     font-weight: 800;
-    margin-top: 8px;
-    padding-top: 10px;
+    margin-top: 3px;
+    padding-top: 5px;
     border-top: 1.5px dashed var(--border-color);
 }
 .grand-total-line .highlight {
-    font-size: 28px;
+    font-size: 19px;
     font-weight: 900;
     color: #34d399;
-    text-shadow: 0 0 20px rgba(52, 211, 153, 0.35);
+    text-shadow: 0 0 16px rgba(52, 211, 153, 0.35);
 }
 
 /* Checkout terminal action bar buttons */
 .cart-actions-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin-top: 12px;
+    gap: 6px;
+    margin-top: 6px;
 }
 .btn-primary {
     background: var(--color-primary);
     color: var(--text-inverse);
-    padding: 12px 16px;
-    border-radius: var(--radius-md);
-    font-size: 14px;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
     font-weight: 700;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
     cursor: pointer;
     box-shadow: var(--shadow-glow);
     transition: var(--transition-fast);
@@ -936,39 +941,39 @@ button, input, select {
 .btn-primary:hover {
     background: var(--color-primary-hover);
     transform: translateY(-2px);
-    box-shadow: 0 0 25px var(--color-primary-glow);
+    box-shadow: 0 0 20px var(--color-primary-glow);
 }
 .btn-primary:active {
     transform: scale(0.96);
 }
 .checkout-btn {
     grid-column: span 2;
-    padding: 16px;
-    font-size: 16px;
+    padding: 11px 14px;
+    font-size: 14px;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.8px;
+    letter-spacing: 0.6px;
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     color: #ffffff;
-    box-shadow: 0 4px 18px rgba(16, 185, 129, 0.4);
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
 }
 .checkout-btn:hover {
     background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(16, 185, 129, 0.5);
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
 }
 .btn-secondary {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--border-color);
     color: var(--text-main);
-    padding: 10px 14px;
+    padding: 7px 10px;
     border-radius: var(--radius-sm);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 5px;
     cursor: pointer;
     transition: var(--transition-fast);
 }
@@ -1737,94 +1742,94 @@ button, input, select {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 24px;
+    padding: 12px 20px;
     background: #18233c;
     border-bottom: 1.5px solid var(--border-color);
 }
 .modal-header h2 {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 700;
     color: #ffffff;
 }
 .close-modal-btn {
-    font-size: 24px;
+    font-size: 22px;
     color: var(--text-muted);
     cursor: pointer;
 }
 
 .modal-body {
-    padding: 24px;
+    padding: 16px;
     overflow-y: auto;
-    max-height: 70vh;
+    max-height: 78vh;
 }
 .modal-footer {
-    padding: 16px 24px;
+    padding: 12px 20px;
     border-top: 1.5px solid var(--border-color);
     display: flex;
     justify-content: flex-end;
-    gap: 12px;
+    gap: 10px;
     background: rgba(0, 0, 0, 0.2);
 }
 
 /* Payment settle dialog layout split */
 .payment-modal-card {
-    max-width: 820px;
+    max-width: 760px;
     width: 95%;
 }
 .payment-grid {
     display: grid;
-    grid-template-columns: 1fr 320px;
-    gap: 24px;
+    grid-template-columns: 1fr 280px;
+    gap: 16px;
 }
 .payment-billing-panel {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 10px;
 }
 .due-bill-badge {
     background: #18233c;
     border: 1.5px solid rgba(16, 185, 129, 0.35);
-    padding: 18px;
+    padding: 12px;
     border-radius: var(--radius-md);
     text-align: center;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
 }
 .due-bill-badge h1 {
-    font-size: 34px;
+    font-size: 26px;
     font-weight: 900;
     color: #34d399;
-    text-shadow: 0 0 20px rgba(52, 211, 153, 0.35);
+    text-shadow: 0 0 16px rgba(52, 211, 153, 0.35);
 }
 .payment-modes-toggle {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-top: 6px;
+    gap: 8px;
+    margin-top: 4px;
 }
 .pay-mode-btn {
     background: #18233c;
     border: 1.5px solid var(--border-color);
-    padding: 14px 12px;
-    font-size: 14px;
+    padding: 10px 8px;
+    font-size: 13px;
     font-weight: 700;
     border-radius: var(--radius-sm);
     cursor: pointer;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     color: #cbd5e1;
     transition: var(--transition-fast);
 }
 .pay-mode-btn i {
-    width: 22px;
-    height: 22px;
+    width: 18px;
+    height: 18px;
 }
 .pay-mode-btn.active {
     background: rgba(16, 185, 129, 0.18);
     border-color: var(--color-primary);
     color: #34d399;
-    box-shadow: 0 0 16px rgba(16, 185, 129, 0.25);
+    box-shadow: 0 0 14px rgba(16, 185, 129, 0.25);
 }
 .tendered-wrap {
     display: flex;
@@ -1832,12 +1837,12 @@ button, input, select {
     background: #0f172a;
     border: 1.5px solid var(--border-color);
     border-radius: var(--radius-sm);
-    padding-left: 14px;
+    padding-left: 10px;
 }
 .tendered-wrap input {
-    font-size: 24px;
+    font-size: 20px;
     font-weight: 800;
-    padding: 12px;
+    padding: 8px;
     color: #34d399;
     text-align: right;
     width: 100%;
@@ -1845,14 +1850,14 @@ button, input, select {
 .quick-cash-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
-    margin-top: 10px;
+    gap: 6px;
+    margin-top: 8px;
 }
 .btn-quick-cash {
     background: #18233c;
     border: 1.5px solid var(--border-color);
-    padding: 10px;
-    font-size: 13px;
+    padding: 8px;
+    font-size: 12px;
     font-weight: 700;
     color: #ffffff;
     border-radius: var(--radius-sm);
@@ -1867,10 +1872,10 @@ button, input, select {
 .change-due-badge {
     background: rgba(16, 185, 129, 0.1);
     border: 1.5px solid rgba(16, 185, 129, 0.35);
-    padding: 14px;
+    padding: 10px;
     border-radius: var(--radius-sm);
     text-align: center;
-    margin-top: 14px;
+    margin-top: 8px;
 }
 .change-due-badge.danger-change {
     background: rgba(239, 68, 68, 0.1);
@@ -1880,7 +1885,7 @@ button, input, select {
     color: var(--color-danger);
 }
 .change-due-badge h2 {
-    font-size: 22px;
+    font-size: 18px;
     font-weight: 900;
     color: #34d399;
 }
@@ -1888,18 +1893,18 @@ button, input, select {
 .card-sim-animation {
     background: rgba(0, 0, 0, 0.25);
     border: 1.5px dashed var(--border-color);
-    padding: 30px 20px;
+    padding: 20px 16px;
     border-radius: var(--radius-md);
     text-align: center;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 12px;
+    gap: 10px;
 }
 .nfc-icon {
-    width: 44px;
-    height: 44px;
+    width: 36px;
+    height: 36px;
     color: var(--color-secondary);
 }
 .bounce-left-right {
@@ -1907,7 +1912,7 @@ button, input, select {
 }
 @keyframes sway {
     0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
+    50% { transform: translateY(-6px); }
 }
 
 /* Touch Keypad */
@@ -1915,18 +1920,18 @@ button, input, select {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    gap: 16px;
+    gap: 12px;
 }
 .keypad-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
+    gap: 6px;
 }
 .keypad-btn {
     background: #18233c;
     border: 1.5px solid var(--border-color);
-    height: 62px;
-    font-size: 22px;
+    height: 48px;
+    font-size: 18px;
     font-weight: 800;
     color: #ffffff;
     border-radius: var(--radius-sm);
@@ -1948,7 +1953,7 @@ button, input, select {
     background: rgba(239, 68, 68, 0.18);
     border-color: rgba(239, 68, 68, 0.35);
     color: var(--color-danger);
-    font-size: 18px;
+    font-size: 15px;
 }
 .keypad-btn.btn-special:hover {
     background: var(--color-danger);
@@ -2605,3 +2610,134 @@ input:focus, select:focus, textarea:focus {
 }
 
 }
+
+/* ==========================================================================
+   Responsive Scaling for POS Terminals & Laptops (1366x768, 1280x800, etc.)
+   ========================================================================== */
+
+/* Standard Laptops & POS Screens (<= 1366px width OR <= 820px height) */
+@media (max-width: 1366px), (max-height: 820px) {
+    .cashier-layout {
+        grid-template-columns: 1fr 310px;
+    }
+    .products-grid {
+        grid-template-columns: repeat(auto-fill, minmax(115px, 1fr));
+        gap: 6px;
+    }
+    .product-card {
+        padding: 6px;
+        gap: 4px;
+        border-radius: 8px;
+    }
+    .product-image-placeholder {
+        height: 56px;
+    }
+    .product-title {
+        font-size: 11px;
+        min-height: 26px;
+    }
+    .product-price {
+        font-size: 13px;
+    }
+    .cart-item-row {
+        padding: 4px 6px;
+        margin-bottom: 3px;
+        gap: 4px;
+    }
+    .cart-item-name {
+        font-size: 11.5px;
+    }
+    .cart-item-price-sum {
+        font-size: 12px;
+        width: 68px;
+    }
+    .cart-footer {
+        padding: 5px 8px 6px 8px;
+        gap: 2px;
+    }
+    .grand-total-line {
+        font-size: 12.5px;
+        margin-top: 2px;
+        padding-top: 4px;
+    }
+    .grand-total-line .highlight {
+        font-size: 18px;
+    }
+    .checkout-btn {
+        padding: 9px 12px;
+        font-size: 13px;
+    }
+    .payment-modal-card {
+        max-width: 700px;
+    }
+    .payment-grid {
+        grid-template-columns: 1fr 250px;
+        gap: 12px;
+    }
+    .keypad-btn {
+        height: 42px;
+        font-size: 16px;
+    }
+    .due-bill-badge {
+        padding: 10px;
+    }
+    .due-bill-badge h1 {
+        font-size: 22px;
+    }
+}
+
+/* Compact Laptop Screens (<= 720px viewport height) */
+@media (max-height: 720px) {
+    .app-header {
+        height: 46px;
+        padding: 4px 12px;
+    }
+    .app-body {
+        height: calc(100vh - 46px);
+    }
+    .logo-icon-wrapper {
+        width: 28px;
+        height: 28px;
+    }
+    .logo-text h1 {
+        font-size: 14px;
+    }
+    .global-scanner {
+        width: 200px;
+    }
+    .nav-btn {
+        padding: 4px 10px;
+        font-size: 11.5px;
+    }
+    .product-image-placeholder {
+        height: 46px;
+    }
+    .product-category-tag {
+        display: none;
+    }
+    .product-card {
+        padding: 5px;
+    }
+    .cart-footer {
+        padding: 4px 6px;
+    }
+    .modal-body {
+        max-height: 72vh;
+        padding: 12px;
+    }
+    .keypad-btn {
+        height: 38px;
+        font-size: 15px;
+    }
+}
+
+/* Tablets and Narrow Displays (<= 960px width) */
+@media (max-width: 960px) {
+    .cashier-layout {
+        grid-template-columns: 1fr 280px;
+    }
+    .global-scanner {
+        display: none;
+    }
+}
+

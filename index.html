@@ -14,7 +14,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="ApexPOS">
-    <link rel="stylesheet" href="style.css?v=26">
+    <link rel="stylesheet" href="style.css?v=27">
     <!-- Lucide Icons: Local -->
     <script src="lib/lucide.min.js" defer></script>
     <!-- Chart.js: Local -->
@@ -25,10 +25,10 @@
     <script src="lib/firebase-auth-compat.js" defer></script>
     <script src="lib/firebase-firestore-compat.js" defer></script>
     <!-- Firebase Config & Cloud DB Abstraction Layer -->
-    <script src="firebase-config.js?v=26" defer></script>
-    <script src="db.js?v=26" defer></script>
+    <script src="firebase-config.js?v=27" defer></script>
+    <script src="db.js?v=27" defer></script>
     <!-- Core Application Logic -->
-    <script src="app.js?v=26" defer></script>
+    <script src="app.js?v=27" defer></script>
 </head>
 <body>
     <!-- ==================== LOADING SPLASH SCREEN ==================== -->
@@ -234,16 +234,16 @@
 
 
 
-                            <!-- Order Notes -->
-                            <div class="summary-line" style="align-items: flex-start; margin-top: 6px;">
-                                <span style="font-size:11px; color: var(--text-muted); padding-top: 6px; white-space: nowrap;">Order Note</span>
-                                <textarea id="cart-order-note" placeholder="Special instructions, table no, customer name..." style="
-                                    flex: 1; margin-left: 10px; padding: 7px 10px;
+                            <!-- Order Notes (Compact) -->
+                            <div class="summary-line" style="align-items: center; margin-top: 4px;">
+                                <span style="font-size:11px; color: var(--text-muted); white-space: nowrap;">Note</span>
+                                <input type="text" id="cart-order-note" placeholder="Table no / instructions..." style="
+                                    flex: 1; margin-left: 8px; padding: 4px 8px;
                                     background: rgba(255,255,255,0.04); border: 1px solid var(--border-color);
-                                    border-radius: 8px; color: var(--text-color); font-size: 11px; font-family: inherit;
-                                    resize: none; height: 42px; line-height: 1.4;
+                                    border-radius: 6px; color: var(--text-color); font-size: 11px; font-family: inherit;
+                                    height: 26px; line-height: 1;
                                     transition: border-color 0.2s;
-                                " onfocus="this.style.borderColor='var(--color-primary)'" onblur="this.style.borderColor='var(--border-color)'"></textarea>
+                                " onfocus="this.style.borderColor='var(--color-primary)'" onblur="this.style.borderColor='var(--border-color)'">
                             </div>
 
                             <!-- Grand Total -->
@@ -252,27 +252,29 @@
                                 <span class="summary-val highlight" id="val-grand-total">LKR 0.00</span>
                             </div>
 
-                            <!-- Checkout Buttons Grid -->
-                            <div class="cart-actions-grid" style="grid-template-columns: 1fr 1fr 1fr;">
-                                <button class="btn-secondary" id="btn-hold-order">
-                                    <i data-lucide="pause-circle"></i> Hold
+                            <!-- Cart Action Buttons -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-top: 8px;">
+                                <button class="btn-secondary" id="btn-hold-order" style="padding: 7px 4px; font-size: 11px; justify-content: center;">
+                                    <i data-lucide="pause-circle" style="width: 14px; height: 14px;"></i> Hold
                                 </button>
-                                <button class="btn-secondary" id="btn-recall-order" style="position: relative;">
-                                    <i data-lucide="play-circle"></i> Recall
+                                <button class="btn-secondary" id="btn-recall-order" style="padding: 7px 4px; font-size: 11px; justify-content: center; position: relative;">
+                                    <i data-lucide="play-circle" style="width: 14px; height: 14px;"></i> Recall
                                     <span class="held-count-badge" id="held-count">0</span>
                                 </button>
-                                <button class="btn-primary checkout-btn" id="btn-trigger-checkout">
-                                    <i data-lucide="credit-card"></i> Pay Now <span class="shortcut">F8</span>
+                                <button class="btn-secondary" id="btn-print-kot" style="
+                                    padding: 7px 4px; font-size: 11px; justify-content: center;
+                                    border-color: rgba(16,185,129,0.3); color: #10b981;
+                                    background: rgba(16,185,129,0.07);
+                                ">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
+                                    KOT
                                 </button>
                             </div>
-                            <!-- KOT Button (full-width below) -->
-                            <button class="btn-secondary" id="btn-print-kot" style="
-                                width: 100%; margin-top: 8px; justify-content: center;
-                                border-color: rgba(16,185,129,0.3); color: #10b981;
-                                background: rgba(16,185,129,0.07);
+                            <button class="btn-primary checkout-btn" id="btn-trigger-checkout" style="
+                                width: 100%; margin-top: 6px; padding: 11px 14px; font-size: 14px; font-weight: 800;
+                                display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: var(--radius-sm);
                             ">
-                                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
-                                Print Kitchen Ticket (KOT)
+                                <i data-lucide="credit-card" style="width: 16px; height: 16px;"></i> Pay Now <span class="shortcut" style="font-size: 10px; margin-left: 4px;">F8</span>
                             </button>
                         </div>
                     </section>
