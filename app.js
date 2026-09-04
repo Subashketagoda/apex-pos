@@ -2369,6 +2369,8 @@ function setupInventoryHandlers() {
         document.getElementById("product-editor-form").reset();
         document.getElementById("edit-prod-index").value = "";
         document.getElementById("prod-code").disabled = false; // Barcode SKU editable for new items
+        document.getElementById("prod-stock").value = "0";
+        document.getElementById("prod-alert-level").value = "10";
         document.getElementById("product-modal-title").textContent = "Add New Product to Database";
         document.getElementById("btn-save-product").textContent = "Add Product";
         document.getElementById("product-modal").classList.add("active");
@@ -2393,6 +2395,8 @@ window.openEditProductModal = function(index) {
     document.getElementById("prod-price").value = p.price;
     document.getElementById("prod-cost").value = p.cost || 0;
     document.getElementById("prod-desc").value = p.description || "";
+    document.getElementById("prod-stock").value = p.stock !== undefined ? p.stock : 0;
+    document.getElementById("prod-alert-level").value = p.alertLevel !== undefined ? p.alertLevel : 10;
     
     document.getElementById("product-modal-title").textContent = `Modify Product details [${p.code}]`;
     document.getElementById("btn-save-product").textContent = "Update Product";
@@ -2406,21 +2410,30 @@ function saveProductRecord() {
     const price = parseFloat(document.getElementById("prod-price").value);
     const cost = parseFloat(document.getElementById("prod-cost").value) || 0;
     const desc = document.getElementById("prod-desc").value.trim();
-
-    const record = {
-        code,
-        name,
-        category,
-        price,
-        cost,
-        stock: 999999,
-        alertLevel: 0,
-        description: desc
-    };
+    const stockInput = parseInt(document.getElementById("prod-stock").value, 10);
+    const alertLevel = parseInt(document.getElementById("prod-alert-level").value, 10) || 10;
+    
+    if (!code || !name || !category || isNaN(price)) {
+        alert("Please fill all required fields: Code, Name, Category, and Price.");
+        return;
+    }
 
     if (editProductIndex !== null) {
-        // Edit record
+        // Edit: preserve existing stock if the stock field wasn't changed intentionally
+        const existing = products[editProductIndex];
+        const record = {
+            ...existing,
+            code,
+            name,
+            category,
+            price,
+            cost,
+            stock: isNaN(stockInput) ? (existing.stock || 0) : stockInput,
+            alertLevel,
+            description: desc
+        };
         products[editProductIndex] = record;
+        db.saveSingleProduct(record);
     } else {
         // Validate code unique for new items
         const isExists = products.some(p => p.code === code);
@@ -2428,16 +2441,28 @@ function saveProductRecord() {
             alert(`Error: A product with Barcode SKU "${code}" already exists in inventory. Code must be unique.`);
             return;
         }
+        const record = {
+            code,
+            name,
+            category,
+            price,
+            cost,
+            stock: isNaN(stockInput) ? 0 : stockInput,
+            alertLevel,
+            description: desc
+        };
         products.push(record);
+        db.saveSingleProduct(record);
     }
 
-    // Save single product to cloud (efficient — no full rewrite)
-    db.saveSingleProduct(record);
     renderInventoryTable();
     renderCategories();
     renderProductsGrid();
     
     document.getElementById("product-modal").classList.remove("active");
+    if (typeof showToast === "function") {
+        showToast(editProductIndex !== null ? `✅ "${name}" updated successfully!` : `✅ "${name}" added to inventory!`);
+    }
 }
 
 window.deleteProduct = function(index) {

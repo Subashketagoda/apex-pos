@@ -1164,6 +1164,14 @@
                         <label for="prod-desc">Brief Product Description</label>
                         <input type="text" id="prod-desc" placeholder="Product short description...">
                     </div>
+                    <div class="form-group">
+                        <label for="prod-stock">Stock Quantity *</label>
+                        <input type="number" id="prod-stock" min="0" required placeholder="e.g. 100" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="prod-alert-level">Low Stock Alert Level</label>
+                        <input type="number" id="prod-alert-level" min="0" placeholder="e.g. 10" step="1" value="10">
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn-secondary" onclick="document.getElementById('product-modal').classList.remove('active')">Cancel</button>
