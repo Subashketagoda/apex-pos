@@ -710,15 +710,15 @@
                                     </form>
                                 </div>
 
-                                <!-- Desktop App Configurations Card -->
-                                <div class="settings-card" id="desktop-config-card" style="display: none;">
-                                    <h3>🖥️ Desktop App Settings</h3>
-                                    <p style="font-size:12px; color:var(--text-muted); margin-bottom:14px;">
-                                        Configure native Windows software settings and integrations.
+                                <!-- Desktop & Hardware Configurations Card -->
+                                <div class="settings-card" id="desktop-config-card">
+                                    <h3 id="desktop-config-title">🖨️ Hardware & Printer Settings</h3>
+                                    <p id="desktop-config-subtitle" style="font-size:12px; color:var(--text-muted); margin-bottom:14px;">
+                                        Configure thermal receipt printing, Kitchen Order Ticket (KOT) automation, and hardware integrations.
                                     </p>
                                     
                                     <!-- Auto-Launch Toggle -->
-                                    <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:12px;">
+                                    <div id="row-setting-autolaunch" style="display:none; align-items:center; justify-content:space-between; padding:12px 14px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:12px;">
                                         <div>
                                             <div style="font-weight:700; font-size:13px;">Auto-Launch on Startup</div>
                                             <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Launch ApexPOS automatically when Windows starts</div>
@@ -739,7 +739,7 @@
                                     </div>
 
                                     <!-- Customer Display Toggle -->
-                                    <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:12px;">
+                                    <div id="row-setting-custdisp" style="display:none; align-items:center; justify-content:space-between; padding:12px 14px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:12px;">
                                         <div>
                                             <div style="font-weight:700; font-size:13px;">Customer Display Screen</div>
                                             <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Show active invoice details on secondary monitor</div>
@@ -760,7 +760,7 @@
                                     </div>
 
                                     <!-- Silent Thermal Print Settings -->
-                                    <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:12px;">
+                                    <div id="row-setting-silentprint" style="display:none; align-items:center; justify-content:space-between; padding:12px 14px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:12px;">
                                         <div>
                                             <div style="font-weight:700; font-size:13px;">Silent Receipt Printing</div>
                                             <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Direct print to thermal printer without print preview dialog</div>
@@ -775,6 +775,28 @@
                                             <span id="silentprint-toggle-thumb" style="
                                                 position:absolute; content:''; height:18px; width:18px;
                                                 left:3px; bottom:3px; background:#fff; border-radius:50%;
+                                                transition:transform 0.2s; pointer-events:none;
+                                            "></span>
+                                        </label>
+                                    </div>
+
+                                    <!-- Auto-Print KOT on Checkout Toggle -->
+                                    <div id="row-setting-autokot" style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:12px;">
+                                        <div>
+                                            <div style="font-weight:700; font-size:13px;">Auto-Print KOT on Checkout</div>
+                                            <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Automatically dispatch Kitchen Order Ticket to printer when sale is completed</div>
+                                        </div>
+                                        <label style="position:relative; display:inline-block; width:44px; height:24px; flex-shrink:0; margin-left:12px;">
+                                            <input type="checkbox" id="set-auto-kot-checkbox" style="opacity:0;width:0;height:0;" checked>
+                                            <span id="autokot-toggle-track" style="
+                                                position:absolute; cursor:pointer; inset:0;
+                                                background:var(--color-primary); border-radius:24px;
+                                                transition:background 0.2s;
+                                            "></span>
+                                            <span id="autokot-toggle-thumb" style="
+                                                position:absolute; content:''; height:18px; width:18px;
+                                                left:3px; bottom:3px; background:#fff; border-radius:50%;
+                                                transform:translateX(20px);
                                                 transition:transform 0.2s; pointer-events:none;
                                             "></span>
                                         </label>

@@ -162,7 +162,8 @@ const DEFAULT_SETTINGS = {
     smsSenderId: "NotifyDEMO",
     autoLaunchEnabled: false,
     customerDisplayEnabled: false,
-    silentPrintEnabled: true
+    silentPrintEnabled: true,
+    autoPrintKot: true
 };
 
 // 2. Application State Management
@@ -367,6 +368,12 @@ function loadDatabaseLocal() {
     const enabled = settings.ebillEnabled === true;
     if (ebillChk) ebillChk.checked = enabled;
     applyEbillToggleState(enabled);
+
+    // Auto-Print KOT toggle
+    const autoKotChk = document.getElementById("set-auto-kot-checkbox");
+    const autoKotStatus = settings.autoPrintKot !== false;
+    if (autoKotChk) autoKotChk.checked = autoKotStatus;
+    applyToggleUI("autokot", autoKotStatus);
     
     updateHeldCartBadge();
 }
@@ -428,6 +435,12 @@ function handleRealtimeSyncUpdate(type) {
         const enabled = settings.ebillEnabled === true;
         if (ebillChk) ebillChk.checked = enabled;
         applyEbillToggleState(enabled);
+
+        // Sync Auto-Print KOT toggle
+        const autoKotChk = document.getElementById("set-auto-kot-checkbox");
+        const autoKotStatus = settings.autoPrintKot !== false;
+        if (autoKotChk) autoKotChk.checked = autoKotStatus;
+        applyToggleUI("autokot", autoKotStatus);
     }
     
     if (type === 'heldCarts') {
@@ -868,6 +881,95 @@ function updateHeldCartBadge() {
 // KOT — Kitchen Order Ticket
 // ==========================================================================
 
+// ==========================================================================
+// KOT — Kitchen Order Ticket Helpers & Auto-Printing
+// ==========================================================================
+
+function generateKotContent(items, note, kotId, txnDate) {
+    const now = txnDate || new Date();
+    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const dateStr = now.toLocaleDateString('en-GB');
+    const id = kotId || ("KOT-" + Date.now().toString().slice(-5));
+
+    return `
+        <div style="text-align:center; border-bottom: 2px dashed #000; padding-bottom: 8px; margin-bottom: 8px;">
+            <div style="font-size: 20px; font-weight: 900; letter-spacing: 2px;">KITCHEN ORDER</div>
+            <div style="font-size: 12px; font-weight: 700; color: #333;">${settings.companyName || "Apex Retail"}</div>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px; color: #000; font-weight: 700;">
+            <span><strong>KOT#:</strong> ${id}</span>
+            <span>${dateStr} ${timeStr}</span>
+        </div>
+        <div style="border-top: 1.5px dashed #000; border-bottom: 1.5px dashed #000; padding: 8px 0; margin: 8px 0;">
+            ${items.map(item => {
+                const itemName = item.product ? item.product.name : (item.name || "Item");
+                const itemQty = item.quantity !== undefined ? item.quantity : (item.qty || 1);
+                return `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 15px; border-bottom: 1px dotted #bbb;">
+                        <span style="font-weight: 800; color: #000; flex: 1; padding-right: 8px;">${itemName}</span>
+                        <span style="font-size: 20px; font-weight: 900; min-width: 40px; text-align: right; color: #000;">x${itemQty}</span>
+                    </div>
+                `;
+            }).join("")}
+        </div>
+        ${note ? `<div style="margin-top: 8px; padding: 6px 8px; border: 2px solid #000; font-size: 13px; font-weight: 700; background: #f4f4f4;"><strong>Note:</strong> ${note}</div>` : ""}
+        <div style="text-align:center; margin-top: 10px; font-size: 11px; font-weight: 700; color: #444; border-top: 1px dashed #000; padding-top: 6px;">*** Kitchen Copy Only ***</div>
+    `;
+}
+
+function printKotDirect(kotContent) {
+    if (typeof ipcRenderer !== "undefined" && ipcRenderer) {
+        // In Electron: Send silent print command directly to kitchen thermal printer
+        ipcRenderer.send('print-kot-silent', { htmlContent: kotContent, silent: true });
+        if (typeof showToast === "function") showToast("🖨️ Auto-printed KOT to Kitchen Printer!");
+        return;
+    }
+
+    // In Web Browser / Mobile: Print via invisible iframe without disrupting UI
+    let printFrame = document.getElementById("kot-hidden-frame");
+    if (!printFrame) {
+        printFrame = document.createElement("iframe");
+        printFrame.id = "kot-hidden-frame";
+        printFrame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;";
+        document.body.appendChild(printFrame);
+    }
+    const frameDoc = printFrame.contentWindow.document;
+    frameDoc.open();
+    frameDoc.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Kitchen Order Ticket</title>
+            <style>
+                @page { margin: 0; size: 80mm auto; }
+                body {
+                    font-family: 'Courier New', Courier, monospace;
+                    margin: 0;
+                    padding: 8px;
+                    font-size: 13px;
+                    width: 72mm;
+                    color: #000;
+                    background: #fff;
+                }
+            </style>
+        </head>
+        <body>
+            ${kotContent}
+        </body>
+        </html>
+    `);
+    frameDoc.close();
+    setTimeout(() => {
+        try {
+            printFrame.contentWindow.focus();
+            printFrame.contentWindow.print();
+        } catch (e) {
+            console.error("[ApexPOS] Print KOT error:", e);
+        }
+        if (typeof showToast === "function") showToast("🖨️ Kitchen Order Ticket (KOT) sent to printer!");
+    }, 250);
+}
+
 function openKotModal() {
     if (cart.length === 0) {
         alert("Cart is empty. Add items before printing a kitchen ticket.");
@@ -876,67 +978,20 @@ function openKotModal() {
 
     const noteEl = document.getElementById("cart-order-note");
     const note = noteEl ? noteEl.value.trim() : "";
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    const dateStr = now.toLocaleDateString('en-GB');
     const kotId = "KOT-" + Date.now().toString().slice(-5);
-
-    const kotContent = `
-        <div style="text-align:center; border-bottom: 2px dashed #000; padding-bottom: 10px; margin-bottom: 10px;">
-            <div style="font-size: 18px; font-weight: 900; letter-spacing: 2px;">KITCHEN ORDER</div>
-            <div style="font-size: 11px; color: #555;">${settings.companyName || "Apex Retail"}</div>
-        </div>
-        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 8px; color: #333;">
-            <span><strong>KOT#:</strong> ${kotId}</span>
-            <span>${dateStr} ${timeStr}</span>
-        </div>
-        <div style="border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 10px 0; margin: 8px 0;">
-            ${cart.map(item => `
-                <div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 14px;">
-                    <span style="font-weight: 700;">${item.product.name}</span>
-                    <span style="font-size: 18px; font-weight: 900; min-width: 32px; text-align: right;">x${item.quantity}</span>
-                </div>
-            `).join("")}
-        </div>
-        ${note ? `<div style="margin-top: 10px; padding: 8px; border: 2px solid #000; font-size: 12px;"><strong>Note:</strong> ${note}</div>` : ""}
-        <div style="text-align:center; margin-top: 12px; font-size: 10px; color: #888; border-top: 1px dashed #000; padding-top: 8px;">Kitchen Copy Only</div>
-    `;
+    const kotContent = generateKotContent(cart, note, kotId, new Date());
 
     document.getElementById("kot-print-area").innerHTML = kotContent;
     document.getElementById("kot-modal").classList.add("active");
 
     // KOT confirm button wires up print
     const btnConfirm = document.getElementById("btn-confirm-kot");
-    
-    // Clear any previous click listeners to prevent duplicates
     const newBtnConfirm = btnConfirm.cloneNode(true);
     btnConfirm.parentNode.replaceChild(newBtnConfirm, btnConfirm);
 
     newBtnConfirm.addEventListener("click", () => {
         document.getElementById("kot-modal").classList.remove("active");
-        
-        if (typeof ipcRenderer !== "undefined" && ipcRenderer) {
-            // Electron environment: handle silent or standard print via main process
-            const silent = settings.silentPrintEnabled === true;
-            ipcRenderer.send('print-kot-silent', { htmlContent: kotContent, silent: silent });
-            showToast(silent ? "🖨️ Silent KOT Print job sent to printer." : "🖨️ KOT Print dialog opened.");
-        } else {
-            // Browser or Capacitor fallback: standard print dialog
-            let wrapper = document.getElementById("kot-print-wrapper");
-            if (wrapper) wrapper.remove();
-            wrapper = document.createElement("div");
-            wrapper.id = "kot-print-wrapper";
-            wrapper.style.cssText = "display:none; font-family: 'Courier New', monospace; background:#fff; color:#000; padding:20px;";
-            wrapper.innerHTML = kotContent;
-            document.body.appendChild(wrapper);
-            document.body.classList.add("printing-kot");
-            window.print();
-            setTimeout(() => {
-                document.body.classList.remove("printing-kot");
-                if (wrapper) wrapper.remove();
-            }, 2000);
-            showToast("Kitchen ticket sent to printer!");
-        }
+        printKotDirect(kotContent);
     });
 }
 
@@ -1567,6 +1622,19 @@ function finalizeSaleCheckout() {
     // 1. Save Transaction to database (in-memory + cloud)
     transactions.push(newTxn);
     db.saveTransaction(newTxn);
+
+    // Auto-Print Kitchen Order Ticket (KOT) to printer if enabled
+    if (settings.autoPrintKot !== false && cart.length > 0) {
+        try {
+            const kotItems = [...cart];
+            const kotNote = orderNote || "";
+            const kotId = "KOT-" + newTxn.id.slice(-5);
+            const kotContent = generateKotContent(kotItems, kotNote, kotId, dateObj);
+            printKotDirect(kotContent);
+        } catch (kotErr) {
+            console.error("[ApexPOS] Auto-print KOT error:", kotErr);
+        }
+    }
 
     // 2. Deduct inventory stock for sold items & sync with database
     let stockUpdated = false;
@@ -3836,12 +3904,19 @@ document.addEventListener("DOMContentLoaded", () => {
         exportZBtn.addEventListener("click", exportZReportsToCSV);
     }
 
-    // Configure Desktop Settings if running inside Electron
+    // Configure Hardware & Desktop Settings
+    const configCard = document.getElementById("desktop-config-card");
+    if (configCard) {
+        configCard.style.display = "block";
+    }
+
     if (ipcRenderer) {
-        const configCard = document.getElementById("desktop-config-card");
-        if (configCard) {
-            configCard.style.display = "block";
-        }
+        const rowAutoLaunch = document.getElementById("row-setting-autolaunch");
+        if (rowAutoLaunch) rowAutoLaunch.style.display = "flex";
+        const rowCustDisp = document.getElementById("row-setting-custdisp");
+        if (rowCustDisp) rowCustDisp.style.display = "flex";
+        const rowSilent = document.getElementById("row-setting-silentprint");
+        if (rowSilent) rowSilent.style.display = "flex";
 
         // 1. Auto-Launch checkbox
         const autolaunchChk = document.getElementById("set-auto-launch-checkbox");
@@ -3894,6 +3969,24 @@ document.addEventListener("DOMContentLoaded", () => {
                 db.saveSettings(settings);
             });
         }
+    }
+
+    // 4. Auto-Print KOT checkbox (Available in both Electron and Web browser)
+    const autokotChk = document.getElementById("set-auto-kot-checkbox");
+    if (autokotChk) {
+        const kotStatus = settings.autoPrintKot !== false;
+        autokotChk.checked = kotStatus;
+        applyToggleUI("autokot", kotStatus);
+
+        autokotChk.addEventListener("change", () => {
+            const enabled = autokotChk.checked;
+            applyToggleUI("autokot", enabled);
+            settings.autoPrintKot = enabled;
+            db.saveSettings(settings);
+            if (typeof showToast === "function") {
+                showToast(enabled ? "✅ Auto-Print KOT Enabled" : "🚫 Auto-Print KOT Disabled");
+            }
+        });
     }
 });
 
