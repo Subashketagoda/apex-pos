@@ -2336,6 +2336,10 @@ function renderInventoryTable() {
         // Map actual original index
         const originalIndex = products.findIndex(item => item.code === p.code);
         
+        const stockDisplay = (p.stock !== undefined && p.stock > 0)
+            ? `<span class="badge-status ${p.stock <= (p.alertLevel || 10) ? 'warning' : 'success'}">${p.stock} in stock</span>`
+            : `<span class="badge-status success">Active</span>`;
+
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td style="font-family: monospace; font-weight: 700;">${p.code}</td>
@@ -2343,7 +2347,7 @@ function renderInventoryTable() {
             <td>${p.category}</td>
             <td>LKR ${p.price.toFixed(2)}</td>
             <td>LKR ${(p.cost || 0).toFixed(2)}</td>
-            <td><span class="badge-status ${p.stock !== undefined && p.stock <= 0 ? 'danger' : (p.stock !== undefined && p.stock <= (p.alertLevel || 10) ? 'warning' : 'success')}">${p.stock !== undefined ? p.stock : 50} in stock</span></td>
+            <td>${stockDisplay}</td>
             <td class="action-buttons-cell">
                 <button class="btn-table-action edit" onclick="openEditProductModal(${originalIndex})" title="Edit Details">
                     <i data-lucide="edit-3"></i>
@@ -2359,28 +2363,46 @@ function renderInventoryTable() {
     lucide.createIcons();
 }
 
+window.openAddProductModal = function() {
+    editProductIndex = null;
+    const form = document.getElementById("product-editor-form");
+    if (form) form.reset();
+    const editIdx = document.getElementById("edit-prod-index");
+    if (editIdx) editIdx.value = "";
+    const codeEl = document.getElementById("prod-code");
+    if (codeEl) codeEl.disabled = false;
+    const stockEl = document.getElementById("prod-stock");
+    if (stockEl) stockEl.value = "";
+    const alertEl = document.getElementById("prod-alert-level");
+    if (alertEl) alertEl.value = "";
+    const titleEl = document.getElementById("product-modal-title");
+    if (titleEl) titleEl.textContent = "Add New Item / Product";
+    const saveBtn = document.getElementById("btn-save-product");
+    if (saveBtn) saveBtn.textContent = "Add Product";
+    const modal = document.getElementById("product-modal");
+    if (modal) modal.classList.add("active");
+};
+
 function setupInventoryHandlers() {
     // Inventory filter search input
-    document.getElementById("inventory-search").addEventListener("input", renderInventoryTable);
+    const invSearch = document.getElementById("inventory-search");
+    if (invSearch) invSearch.addEventListener("input", renderInventoryTable);
     
     // Add product open trigger
-    document.getElementById("btn-open-add-product").addEventListener("click", () => {
-        editProductIndex = null;
-        document.getElementById("product-editor-form").reset();
-        document.getElementById("edit-prod-index").value = "";
-        document.getElementById("prod-code").disabled = false; // Barcode SKU editable for new items
-        document.getElementById("prod-stock").value = "0";
-        document.getElementById("prod-alert-level").value = "10";
-        document.getElementById("product-modal-title").textContent = "Add New Product to Database";
-        document.getElementById("btn-save-product").textContent = "Add Product";
-        document.getElementById("product-modal").classList.add("active");
-    });
+    const btnAdd = document.getElementById("btn-open-add-product");
+    if (btnAdd) btnAdd.addEventListener("click", window.openAddProductModal);
+
+    const btnPosAdd = document.getElementById("btn-pos-add-product");
+    if (btnPosAdd) btnPosAdd.addEventListener("click", window.openAddProductModal);
 
     // Save product form submit
-    document.getElementById("product-editor-form").addEventListener("submit", (e) => {
-        e.preventDefault();
-        saveProductRecord();
-    });
+    const prodForm = document.getElementById("product-editor-form");
+    if (prodForm) {
+        prodForm.addEventListener("submit", (e) => {
+            e.preventDefault();
+            saveProductRecord();
+        });
+    }
 }
 
 window.openEditProductModal = function(index) {
@@ -2395,8 +2417,8 @@ window.openEditProductModal = function(index) {
     document.getElementById("prod-price").value = p.price;
     document.getElementById("prod-cost").value = p.cost || 0;
     document.getElementById("prod-desc").value = p.description || "";
-    document.getElementById("prod-stock").value = p.stock !== undefined ? p.stock : 0;
-    document.getElementById("prod-alert-level").value = p.alertLevel !== undefined ? p.alertLevel : 10;
+    document.getElementById("prod-stock").value = (p.stock !== undefined && p.stock !== null && p.stock > 0) ? p.stock : "";
+    document.getElementById("prod-alert-level").value = (p.alertLevel !== undefined && p.alertLevel !== null) ? p.alertLevel : "";
     
     document.getElementById("product-modal-title").textContent = `Modify Product details [${p.code}]`;
     document.getElementById("btn-save-product").textContent = "Update Product";
@@ -2410,8 +2432,10 @@ function saveProductRecord() {
     const price = parseFloat(document.getElementById("prod-price").value);
     const cost = parseFloat(document.getElementById("prod-cost").value) || 0;
     const desc = document.getElementById("prod-desc").value.trim();
-    const stockInput = parseInt(document.getElementById("prod-stock").value, 10);
-    const alertLevel = parseInt(document.getElementById("prod-alert-level").value, 10) || 10;
+    const stockRaw = document.getElementById("prod-stock").value.trim();
+    const stockInput = stockRaw !== "" ? parseInt(stockRaw, 10) : undefined;
+    const alertRaw = document.getElementById("prod-alert-level").value.trim();
+    const alertLevel = alertRaw !== "" ? parseInt(alertRaw, 10) : 10;
     
     if (!code || !name || !category || isNaN(price)) {
         alert("Please fill all required fields: Code, Name, Category, and Price.");
@@ -2428,8 +2452,8 @@ function saveProductRecord() {
             category,
             price,
             cost,
-            stock: isNaN(stockInput) ? (existing.stock || 0) : stockInput,
-            alertLevel,
+            stock: (stockInput !== undefined && !isNaN(stockInput)) ? stockInput : (existing.stock !== undefined ? existing.stock : 0),
+            alertLevel: !isNaN(alertLevel) ? alertLevel : 10,
             description: desc
         };
         products[editProductIndex] = record;
@@ -2447,8 +2471,8 @@ function saveProductRecord() {
             category,
             price,
             cost,
-            stock: isNaN(stockInput) ? 0 : stockInput,
-            alertLevel,
+            stock: (stockInput !== undefined && !isNaN(stockInput)) ? stockInput : 0,
+            alertLevel: !isNaN(alertLevel) ? alertLevel : 10,
             description: desc
         };
         products.push(record);

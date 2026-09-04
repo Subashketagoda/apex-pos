@@ -14,7 +14,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="ApexPOS">
-    <link rel="stylesheet" href="style.css?v=31">
+    <link rel="stylesheet" href="style.css?v=32">
     
     <!-- Lucide Icons (deferred for performance) -->
     <script src="lib/lucide.min.js" defer></script>
@@ -23,10 +23,10 @@
     <script src="lib/firebase-app-compat.js" defer></script>
     <script src="lib/firebase-auth-compat.js" defer></script>
     <script src="lib/firebase-firestore-compat.js" defer></script>
-    <script src="firebase-config.js?v=31" defer></script>
-    <script src="db.js?v=31" defer></script>
+    <script src="firebase-config.js?v=32" defer></script>
+    <script src="db.js?v=32" defer></script>
     <script src="lib/chart.umd.js" defer></script>
-    <script src="app.js?v=31" defer></script>
+    <script src="app.js?v=32" defer></script>
 </head>
 <body>
     <!-- ==================== LOADING SPLASH SCREEN ==================== -->
@@ -150,12 +150,15 @@
                     <!-- Left Side: Catalog Panel (65%) -->
                     <section class="catalog-panel">
                         <!-- Top search bar & filtering -->
-                        <div class="catalog-header">
-                            <div class="search-box">
+                        <div class="catalog-header" style="display: flex; gap: 10px; align-items: center;">
+                            <div class="search-box" style="flex: 1;">
                                 <i data-lucide="search" class="search-icon"></i>
                                 <input type="text" id="catalog-search" placeholder="Search product by name, code or barcode...">
                                 <button id="clear-search-btn" class="clear-search" style="display: none;">&times;</button>
                             </div>
+                            <button type="button" class="btn-primary" id="btn-pos-add-product" onclick="window.openAddProductModal ? window.openAddProductModal() : null" style="display: flex; align-items: center; gap: 6px; padding: 0 14px; height: 42px; white-space: nowrap; font-size: 13px; font-weight: 600; flex-shrink: 0; border-radius: 8px; cursor: pointer;" title="Add New Item">
+                                <i data-lucide="plus"></i> Add Item
+                            </button>
                         </div>
 
                         <!-- Categories Horizontal scroll list -->
@@ -287,9 +290,8 @@
                         <button class="admin-nav-btn active" data-tab="tab-analytics">
                             <i data-lucide="trending-up"></i> Sales Analytics
                         </button>
-                        <!-- Inventory Master (Temporarily disabled as requested) -->
-                        <button class="admin-nav-btn" data-tab="tab-inventory" id="admin-nav-inventory" style="display: none;">
-                            <i data-lucide="package"></i> Inventory Master
+                        <button class="admin-nav-btn" data-tab="tab-inventory" id="admin-nav-inventory">
+                            <i data-lucide="package"></i> Items / Products
                         </button>
                         <button class="admin-nav-btn" data-tab="tab-zreports">
                             <i data-lucide="file-text"></i> Daily Z-Reports
@@ -379,10 +381,10 @@
                             </div>
                         </div>
 
-                        <!-- TAB B: INVENTORY (Temporarily disabled as requested) -->
-                        <div id="tab-inventory" class="admin-tab-content" style="display: none;">
+                        <!-- TAB B: ITEMS & PRODUCTS -->
+                        <div id="tab-inventory" class="admin-tab-content">
                             <div class="tab-header">
-                                <h2>Inventory Management</h2>
+                                <h2>Items & Product Catalog</h2>
                                 <div class="tab-actions">
                                     <div class="search-box">
                                         <i data-lucide="search" class="search-icon"></i>
@@ -1165,12 +1167,12 @@
                         <input type="text" id="prod-desc" placeholder="Product short description...">
                     </div>
                     <div class="form-group">
-                        <label for="prod-stock">Stock Quantity *</label>
-                        <input type="number" id="prod-stock" min="0" required placeholder="e.g. 100" step="1">
+                        <label for="prod-stock">Stock Quantity (Optional)</label>
+                        <input type="number" id="prod-stock" min="0" placeholder="e.g. 100 (Optional)" step="1">
                     </div>
                     <div class="form-group">
-                        <label for="prod-alert-level">Low Stock Alert Level</label>
-                        <input type="number" id="prod-alert-level" min="0" placeholder="e.g. 10" step="1" value="10">
+                        <label for="prod-alert-level">Low Stock Alert Level (Optional)</label>
+                        <input type="number" id="prod-alert-level" min="0" placeholder="e.g. 10" step="1">
                     </div>
                 </div>
                 <div class="modal-footer">
