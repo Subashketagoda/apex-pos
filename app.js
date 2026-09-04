@@ -332,7 +332,7 @@ function applyEbillToggleState(enabled) {
     if (track) track.style.background = enabled ? "var(--color-primary)" : "#374151";
     if (thumb) thumb.style.transform = enabled ? "translateX(20px)" : "translateX(0)";
     if (allSettings) allSettings.style.display = enabled ? "block" : "none";
-    if (phoneRow) phoneRow.style.display = enabled ? "block" : "none";
+    if (phoneRow) phoneRow.style.display = "block"; // Always accessible for WhatsApp & SMS
 }
 
 // Load variables from localStorage instantly for fast page rendering
@@ -1586,11 +1586,13 @@ function finalizeSaleCheckout() {
             customerPhone = "0" + customerPhone.slice(3);
         } else if (customerPhone.startsWith("94") && customerPhone.length === 11) {
             customerPhone = "0" + customerPhone.slice(2);
+        } else if (customerPhone.length === 9 && customerPhone.startsWith("7")) {
+            customerPhone = "0" + customerPhone;
         }
 
-        // Validate 10-digit Sri Lankan mobile number starting with 07
-        if (!/^07\d{8}$/.test(customerPhone)) {
-            alert("Invalid phone number. Enter a valid 10-digit number starting with 07 (e.g. 0761210164), or leave it blank to skip E-Bill.");
+        // Validate 10-digit Sri Lankan mobile number starting with 07, or generic phone
+        if (!/^07\d{8}$/.test(customerPhone) && !/^\d{9,15}$/.test(customerPhone)) {
+            alert("Please enter a valid mobile number (e.g. 0771234567), or leave blank to skip.");
             if (phoneInput) phoneInput.focus();
             return;
         }
@@ -1745,6 +1747,125 @@ window.resendTxnSMS = function(txnId) {
 };
 
 // ==========================================================================
+// WhatsApp Bill Sharing Helpers & Utilities
+// ==========================================================================
+
+function normalizeWhatsAppPhone(phone) {
+    if (!phone) return "";
+    let clean = phone.toString().replace(/\D/g, ""); // keep only digits
+    if (clean.startsWith("0")) {
+        clean = "94" + clean.slice(1);
+    } else if (clean.startsWith("+94")) {
+        clean = clean.replace("+", "");
+    } else if (clean.length === 9 && clean.startsWith("7")) {
+        clean = "94" + clean;
+    }
+    return clean;
+}
+
+function formatWhatsAppBillMessage(txn) {
+    const company = settings.companyName || "Apex Retail & Food";
+    const formattedDate = new Date(txn.timestamp).toLocaleString('en-US', {
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit'
+    });
+    const receiptUrl = `${window.location.origin}/receipt.html?id=${txn.id}`;
+
+    let itemsText = "";
+    if (Array.isArray(txn.items) && txn.items.length > 0) {
+        itemsText = txn.items.map(item => 
+            `• *${item.name}* x ${item.quantity} = LKR ${item.total.toFixed(2)}`
+        ).join("\n");
+    } else {
+        itemsText = "• Order Items";
+    }
+
+    let msg = `🧾 *INVOICE RECEIPT* - ${company}\n`;
+    msg += `━━━━━━━━━━━━━━━━━━━━━\n`;
+    msg += `*Invoice No:* #${txn.id}\n`;
+    msg += `*Date:* ${formattedDate}\n`;
+    if (txn.cashierName) {
+        msg += `*Cashier:* ${txn.cashierName}\n`;
+    }
+    msg += `\n🛍️ *Order Items:*\n${itemsText}\n`;
+    msg += `━━━━━━━━━━━━━━━━━━━━━\n`;
+    msg += `*Subtotal:* LKR ${txn.subtotal.toFixed(2)}\n`;
+    if (txn.discount > 0) {
+        msg += `*Discount:* -LKR ${txn.discount.toFixed(2)}\n`;
+    }
+    msg += `💰 *GRAND TOTAL: LKR ${txn.grandTotal.toFixed(2)}*\n`;
+    msg += `💳 *Payment Mode:* ${txn.paymentMode.toUpperCase()}\n`;
+    if (txn.paymentMode === 'cash' && txn.changeDue > 0) {
+        msg += `💵 *Change Returned:* LKR ${txn.changeDue.toFixed(2)}\n`;
+    }
+    msg += `━━━━━━━━━━━━━━━━━━━━━\n`;
+    msg += `🌐 *View & Download Digital E-Bill:*\n${receiptUrl}\n\n`;
+    msg += `Thank you for your visit! 🙏`;
+
+    return msg;
+}
+
+window.sendWhatsAppBill = function(txnIdOrTxn, customPhone = null) {
+    let txn = typeof txnIdOrTxn === 'object' ? txnIdOrTxn : transactions.find(t => t.id === txnIdOrTxn);
+    if (!txn) {
+        alert("Transaction not found.");
+        return;
+    }
+
+    let phone = customPhone !== null ? customPhone : (txn.customerPhone || "");
+    phone = (phone || "").trim();
+
+    // If no phone provided, prompt or let cashier pick inside WhatsApp
+    if (!phone) {
+        const entered = prompt("Enter customer's WhatsApp number (e.g. 0771234567):\n(Or leave blank to pick contact directly in WhatsApp)", "");
+        if (entered === null) return; // User pressed Cancel
+        phone = entered.trim();
+    }
+
+    if (phone) {
+        if (!txn.customerPhone) {
+            txn.customerPhone = phone;
+            db.saveTransaction(txn);
+        }
+        const phoneInput = document.getElementById("modal-whatsapp-phone");
+        if (phoneInput) phoneInput.value = phone;
+    }
+
+    const cleanPhone = normalizeWhatsAppPhone(phone);
+    const msg = formatWhatsAppBillMessage(txn);
+    const encodedMsg = encodeURIComponent(msg);
+
+    let waUrl;
+    if (cleanPhone) {
+        waUrl = `https://wa.me/${cleanPhone}?text=${encodedMsg}`;
+    } else {
+        waUrl = `https://wa.me/?text=${encodedMsg}`;
+    }
+
+    window.open(waUrl, "_blank");
+    showToast("💬 Opening WhatsApp to send bill...");
+};
+
+window.sendActiveReceiptWhatsApp = function() {
+    const txnId = window.currentActiveReceiptTxnId;
+    if (!txnId) return;
+    const phoneInput = document.getElementById("modal-whatsapp-phone");
+    const phone = phoneInput ? phoneInput.value.trim() : null;
+    sendWhatsAppBill(txnId, phone);
+};
+
+window.copyReceiptBillText = function(txnId) {
+    const txn = typeof txnId === 'object' ? txnId : transactions.find(t => t.id === txnId);
+    if (!txn) return;
+    const text = formatWhatsAppBillMessage(txn);
+    navigator.clipboard.writeText(text).then(() => {
+        showToast("📋 Bill text copied to clipboard!");
+    }).catch(() => {
+        alert("Could not copy text to clipboard.");
+    });
+};
+
+// ==========================================================================
 // Invoice Receipt Generator
 // ==========================================================================
 
@@ -1846,35 +1967,48 @@ function printThermalReceiptPreview(txn) {
         </div>
     `;
 
-    // Handle E-Bill (SMS digital receipt status sharing)
+    // Handle E-Bill (WhatsApp & Digital receipt sharing)
     const eBillSection = document.getElementById("e-bill-share-section");
-    if (eBillSection && txn.customerPhone) {
+    if (eBillSection) {
         const receiptUrl = `${window.location.origin}/receipt.html?id=${txn.id}`;
-        const method = settings.smsMethod || "device";
-        const methodLabel = method === "gateway" ? "Cloud Gateway" : "Device SMS App";
+        const phoneVal = txn.customerPhone || "";
+        const smsSentNote = (settings.ebillEnabled && txn.customerPhone)
+            ? `<div style="font-size: 11px; color: var(--color-primary); margin-bottom: 6px; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                <i data-lucide="check-circle" style="width: 13px; height: 13px;"></i> SMS Dispatched to ${txn.customerPhone}
+               </div>`
+            : "";
 
         eBillSection.innerHTML = `
-            <div style="font-weight: 700; color: var(--color-primary); font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                <i data-lucide="message-square" style="width: 16px; height: 16px;"></i> E-Bill SMS Dispatched: <strong>${txn.customerPhone}</strong>
-            </div>
-            <div style="margin-top: 8px; font-size: 11px; color: var(--text-muted); text-align: center;">
-                Method: ${methodLabel}. Customer can view digital receipt at the link.
-            </div>
-            <div style="display: flex; gap: 8px; margin-top: 10px;">
-                <button onclick="resendTxnSMS('${txn.id}')" style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px; padding:9px 14px; background:var(--color-primary); color:#fff; border:none; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer;">
-                    <i data-lucide="send" style="width:13px;height:13px;"></i> Resend via SMS
-                </button>
-                <button onclick="navigator.clipboard.writeText('${receiptUrl}').then(()=>alert('Receipt link copied!'))" style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px; padding:9px 14px; background:rgba(255,255,255,0.07); color:var(--text-color); border:1px solid var(--border-color); border-radius:8px; font-size:12px; font-weight:700; cursor:pointer;">
-                    <i data-lucide="copy" style="width:13px;height:13px;"></i> Copy Receipt Link
-                </button>
+            ${smsSentNote}
+            <div class="receipt-whatsapp-box">
+                <div class="receipt-whatsapp-header">
+                    <span style="display: flex; align-items: center; gap: 6px;">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                        WhatsApp / E-Bill Delivery
+                    </span>
+                    <span style="font-size: 11px; color: var(--text-muted); font-weight: 500;">Direct to Phone</span>
+                </div>
+                <div class="receipt-whatsapp-input-row">
+                    <input type="tel" id="modal-whatsapp-phone" class="receipt-whatsapp-input" placeholder="Customer WhatsApp (e.g. 0771234567)" value="${phoneVal}">
+                    <button class="btn-whatsapp" onclick="sendWhatsAppBill('${txn.id}', document.getElementById('modal-whatsapp-phone').value)" style="padding: 8px 14px; font-size: 12px; height: auto;">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                        Send
+                    </button>
+                </div>
+                <div class="receipt-whatsapp-actions">
+                    <button class="receipt-whatsapp-btn-sub" onclick="copyReceiptBillText('${txn.id}')">
+                        <i data-lucide="file-text" style="width:13px;height:13px;"></i> Copy Bill Text
+                    </button>
+                    <button class="receipt-whatsapp-btn-sub" onclick="copyTransactionEBillLink('${txn.id}')">
+                        <i data-lucide="copy" style="width:13px;height:13px;"></i> Copy Invoice Link
+                    </button>
+                </div>
             </div>
         `;
         eBillSection.style.display = "block";
         if (typeof lucide !== "undefined") {
             lucide.createIcons();
         }
-    } else if (eBillSection) {
-        eBillSection.style.display = "none";
     }
 
     document.getElementById("receipt-modal").classList.add("active");
@@ -2317,11 +2451,13 @@ function renderTransactionsTable() {
                 <button class="btn-table-action view" onclick="viewTransactionReceipt('${t.id}')" title="View / Print Receipt" style="background: rgba(16, 185, 129, 0.1); color: var(--color-primary); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: var(--radius-sm); padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer;">
                     <i data-lucide="eye" style="width: 14px; height: 14px;"></i> View
                 </button>
-                ${t.customerPhone ? `
-                <button class="btn-table-action copy" onclick="copyTransactionEBillLink('${t.id}')" title="Copy Digital Receipt Link" style="background: rgba(139, 92, 246, 0.1); color: var(--color-secondary); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: var(--radius-sm); padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer; margin-left: 6px;">
-                    <i data-lucide="copy" style="width: 14px; height: 14px;"></i> Copy Link
+                <button class="btn-table-action whatsapp" onclick="sendWhatsAppBill('${t.id}')" title="Send Bill via WhatsApp" style="background: rgba(37, 211, 102, 0.12); color: #25d366; border: 1px solid rgba(37, 211, 102, 0.3); border-radius: var(--radius-sm); padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer; margin-left: 6px;">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                    WhatsApp
                 </button>
-                ` : ""}
+                <button class="btn-table-action copy" onclick="copyTransactionEBillLink('${t.id}')" title="Copy Digital Receipt Link" style="background: rgba(139, 92, 246, 0.1); color: var(--color-secondary); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: var(--radius-sm); padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer; margin-left: 6px;">
+                    <i data-lucide="copy" style="width: 14px; height: 14px;"></i> Link
+                </button>
                 <button class="btn-table-action edit" onclick="editTransaction('${t.id}')" title="Edit Order" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.25); border-radius: var(--radius-sm); padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer; margin-left: 6px;">
                     <i data-lucide="edit" style="width: 14px; height: 14px;"></i> Edit
                 </button>
