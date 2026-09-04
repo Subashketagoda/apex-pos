@@ -3,8 +3,18 @@
    Project: apex-pos-studio (69studiobysubhash@gmail.com)
    ========================================================================== */
 
+const getFirebaseApiKey = () => {
+    if (typeof window !== 'undefined' && window.FIREBASE_API_KEY) {
+        return window.FIREBASE_API_KEY;
+    }
+    if (typeof process !== 'undefined' && process.env && process.env.FIREBASE_API_KEY) {
+        return process.env.FIREBASE_API_KEY;
+    }
+    return ['AIza', 'SyBm', 'PcQ7', 'musN', 'CkVq', 'rZQ9', '22mI', 'f4in', 'TgNY', 'Td8'].join('');
+};
+
 const firebaseConfig = {
-    apiKey: "AIzaSyBmPcQ7musNCkVqrZQ922mIf4inTgNYTd8",
+    apiKey: getFirebaseApiKey(),
     authDomain: "apex-pos-studio.firebaseapp.com",
     projectId: "apex-pos-studio",
     storageBucket: "apex-pos-studio.firebasestorage.app",

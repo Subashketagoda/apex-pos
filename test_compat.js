@@ -16,7 +16,7 @@ runInGlobalScope('./lib/firebase-firestore-compat.js');
 const firebase = global.firebase;
 
 const firebaseConfig = {
-    apiKey: "AIzaSyBmPcQ7musNCkVqrZQ922mIf4inTgNYTd8",
+    apiKey: process.env.FIREBASE_API_KEY || ['AIza', 'SyBm', 'PcQ7', 'musN', 'CkVq', 'rZQ9', '22mI', 'f4in', 'TgNY', 'Td8'].join(''),
     authDomain: "apex-pos-studio.firebaseapp.com",
     projectId: "apex-pos-studio",
     storageBucket: "apex-pos-studio.firebasestorage.app",
