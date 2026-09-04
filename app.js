@@ -154,6 +154,7 @@ const DEFAULT_SETTINGS = {
     companyName: "Apex Retail (Pvt) Ltd",
     companyAddress: "No 15, Galle Road, Colombo 03, Sri Lanka",
     companyPhone: "+94 11 234 5678",
+    cashierPin: "123456",
     adminPasscode: "admin123",
     ebillEnabled: false,
     smsMethod: "gateway",
@@ -163,7 +164,9 @@ const DEFAULT_SETTINGS = {
     autoLaunchEnabled: false,
     customerDisplayEnabled: false,
     silentPrintEnabled: true,
-    autoPrintKot: true
+    autoPrintKot: true,
+    autoPrintReceipt: false,
+    printerPaperSize: "80mm"
 };
 
 // 2. Application State Management
@@ -374,6 +377,12 @@ function loadDatabaseLocal() {
     const autoKotStatus = settings.autoPrintKot !== false;
     if (autoKotChk) autoKotChk.checked = autoKotStatus;
     applyToggleUI("autokot", autoKotStatus);
+
+    // Apply initial paper size
+    const savedSize = settings.printerPaperSize || '80mm';
+    if (document.querySelector('.receipt-print-container')) {
+        applyPrinterPaperSize(savedSize);
+    }
     
     updateHeldCartBadge();
 }
@@ -829,27 +838,7 @@ function setupCartControls() {
     // Open Cash Drawer button
     const btnDrawer = document.getElementById("btn-open-drawer");
     if (btnDrawer) {
-        btnDrawer.addEventListener("click", () => {
-            // Standard ESC/POS cash drawer pulse command (works via WebSerial if supported)
-            if (navigator.serial) {
-                // WebSerial: open drawer pulse
-                navigator.serial.requestPort().then(port => {
-                    return port.open({ baudRate: 9600 }).then(() => {
-                        const writer = port.writable.getWriter();
-                        const cmd = new Uint8Array([0x10, 0x14, 0x00, 0x01, 0x00]);
-                        return writer.write(cmd).then(() => {
-                            writer.releaseLock();
-                            port.close();
-                        });
-                    });
-                }).catch(() => {
-                    showToast("💰 Cash Drawer — Open signal sent!");
-                });
-            } else {
-                // Fallback: just show a toast (for browsers without WebSerial)
-                showToast("💰 Cash Drawer — Open signal sent!");
-            }
-        });
+        btnDrawer.addEventListener("click", () => openCashDrawerKick());
     }
 
     // Park / Hold Order
@@ -1772,6 +1761,11 @@ function finalizeSaleCheckout() {
 
     // 7. Load and Show Invoice Thermal Receipt
     printThermalReceiptPreview(newTxn);
+
+    // 7b. Auto-Print if enabled
+    if (settings.autoPrintReceipt) {
+        setTimeout(() => window.print(), 800); // small delay to let receipt render
+    }
     
     // Sync customer display completed state
     if (typeof syncCustomerDisplay === "function") {
@@ -2121,15 +2115,16 @@ function printThermalReceiptPreview(txn) {
 // ==========================================================================
 
 function renderAnalyticsCharts() {
-    // 1. Calculate General Operations metrics cards values
-    const totals = transactions.reduce((acc, t) => {
+    // 1. Calculate General Operations metrics — exclude voided transactions
+    const activeTxns = transactions.filter(t => t.status !== 'voided');
+    const totals = activeTxns.reduce((acc, t) => {
         acc.gross += t.grandTotal;
         acc.discount += t.discount;
         return acc;
     }, { gross: 0, discount: 0 });
 
     document.getElementById("stat-gross-revenue").textContent = `LKR ${totals.gross.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    document.getElementById("stat-transactions").textContent = transactions.length.toString();
+    document.getElementById("stat-transactions").textContent = activeTxns.length.toString();
     document.getElementById("stat-discounts-given").textContent = `LKR ${totals.discount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     
     // 2. Setup Chart.js Charts
@@ -2148,11 +2143,13 @@ function initSalesTrendChart() {
         salesTrendChartRef.destroy();
     }
 
-    // Aggregate transactional sales by dates (or times if today)
+    // Aggregate transactional sales by dates (or times if today) — exclude voided
     const salesData = {};
     
     // Sort transactions by date chronological order
-    const sortedTxns = [...transactions].sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+    const sortedTxns = [...transactions]
+        .filter(t => t.status !== 'voided')
+        .sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
 
     sortedTxns.forEach(t => {
         const dateStr = new Date(t.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -2212,7 +2209,7 @@ function initPaymentMethodsChart() {
     let cashTotal = 0;
     let cardTotal = 0;
 
-    transactions.forEach(t => {
+    transactions.filter(t => t.status !== 'voided').forEach(t => {
         if (t.paymentMode === "cash") {
             cashTotal += t.grandTotal;
         } else if (t.paymentMode === "card") {
@@ -2257,9 +2254,9 @@ function initBestSellersChart() {
         bestSellersChartRef.destroy();
     }
 
-    // Sum product sale frequencies
+    // Sum product sale frequencies — exclude voided
     const productSalesCount = {};
-    transactions.forEach(t => {
+    transactions.filter(t => t.status !== 'voided').forEach(t => {
         t.items.forEach(item => {
             productSalesCount[item.name] = (productSalesCount[item.name] || 0) + item.quantity;
         });
@@ -2461,8 +2458,8 @@ window.deleteProduct = function(index) {
 // ==========================================================================
 
 function renderZReportsTab() {
-    // 1. Calculate running stats of active unclosed register (filter out archived closed shift txns)
-    const activeTxns = transactions.filter(t => !t.closed);
+    // 1. Calculate running stats of active unclosed register (filter out voided and archived closed shift txns)
+    const activeTxns = transactions.filter(t => !t.closed && t.status !== 'voided');
     const unclosedCount = activeTxns.length;
     
     const unclosedTotals = activeTxns.reduce((acc, t) => {
@@ -2541,14 +2538,25 @@ function renderTransactionsTable() {
     filtered.forEach(t => {
         const dateStr = new Date(t.timestamp).toLocaleString();
         const customerPhone = t.customerPhone || "N/A";
-        
+        const isVoided = t.status === 'voided';
+
+        const statusBadge = isVoided
+            ? `<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(239,68,68,0.12);color:#ef4444;border:1px solid rgba(239,68,68,0.3);border-radius:99px;padding:2px 8px;font-size:10px;font-weight:700;">
+                &#x2B24; VOIDED
+               </span>`
+            : `<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(16,185,129,0.1);color:#10b981;border:1px solid rgba(16,185,129,0.25);border-radius:99px;padding:2px 8px;font-size:10px;font-weight:700;">
+                &#x2B24; ACTIVE
+               </span>`;
+
         const tr = document.createElement("tr");
+        if (isVoided) tr.style.opacity = '0.55';
         tr.innerHTML = `
             <td style="font-family: monospace; font-weight: 700; color: var(--color-primary);">${t.id}</td>
             <td>${dateStr}</td>
             <td><strong>${customerPhone}</strong></td>
             <td><strong>LKR ${t.grandTotal.toFixed(2)}</strong></td>
             <td>${t.paymentMode.toUpperCase()}</td>
+            <td>${statusBadge}</td>
             <td class="action-buttons-cell">
                 <button class="btn-table-action view" onclick="viewTransactionReceipt('${t.id}')" title="View / Print Receipt" style="background: rgba(16, 185, 129, 0.1); color: var(--color-primary); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: var(--radius-sm); padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer;">
                     <i data-lucide="eye" style="width: 14px; height: 14px;"></i> View
@@ -2560,12 +2568,13 @@ function renderTransactionsTable() {
                 <button class="btn-table-action copy" onclick="copyTransactionEBillLink('${t.id}')" title="Copy Digital Receipt Link" style="background: rgba(139, 92, 246, 0.1); color: var(--color-secondary); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: var(--radius-sm); padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer; margin-left: 6px;">
                     <i data-lucide="copy" style="width: 14px; height: 14px;"></i> Link
                 </button>
+                ${!isVoided ? `
                 <button class="btn-table-action edit" onclick="editTransaction('${t.id}')" title="Edit Order" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.25); border-radius: var(--radius-sm); padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer; margin-left: 6px;">
                     <i data-lucide="edit" style="width: 14px; height: 14px;"></i> Edit
                 </button>
-                <button class="btn-table-action delete" onclick="deleteTransaction('${t.id}')" title="Delete Order" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.25); border-radius: var(--radius-sm); padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer; margin-left: 6px;">
-                    <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i> Delete
-                </button>
+                <button class="btn-table-action delete" onclick="voidTransaction('${t.id}')" title="Void / Cancel Order" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.25); border-radius: var(--radius-sm); padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer; margin-left: 6px;">
+                    <i data-lucide="ban" style="width: 14px; height: 14px;"></i> Void
+                </button>` : `<span style="font-size:10px;color:var(--text-muted);margin-left:8px;">Voided — ${t.voidReason || ''}</span>`}
             </td>
         `;
         tbody.appendChild(tr);
@@ -2583,23 +2592,97 @@ window.viewTransactionReceipt = function(txnId) {
     }
 };
 
+window.voidTransaction = function(txnId) {
+    const txn = transactions.find(t => t.id === txnId);
+    if (!txn) return;
+    if (txn.status === 'voided') {
+        alert('This order has already been voided.');
+        return;
+    }
+
+    // Step 1: Manager Passcode
+    const enteredPasscode = prompt(
+        '🔐 MANAGER AUTHORISATION REQUIRED\n\n' +
+        'Enter Manager Override Passcode to void this order:'
+    );
+    if (enteredPasscode === null) return; // cancelled
+    const correctPwd = settings.adminPasscode || 'admin123';
+    if (enteredPasscode !== correctPwd) {
+        alert('❌ Incorrect Manager Passcode. Void request denied.');
+        return;
+    }
+
+    // Step 2: Reason
+    const reasons = [
+        '1 - Customer Cancelled',
+        '2 - Wrong Item Entry',
+        '3 - Food / Product Return',
+        '4 - Payment Issue',
+        '5 - Other'
+    ];
+    const reasonChoice = prompt(
+        '📋 SELECT VOID REASON\n\n' +
+        reasons.join('\n') +
+        '\n\nEnter reason number (1-5):'
+    );
+    if (reasonChoice === null) return;
+    const reasonMap = { '1': 'Customer Cancelled', '2': 'Wrong Item Entry', '3': 'Food / Product Return', '4': 'Payment Issue', '5': 'Other' };
+    const voidReason = reasonMap[reasonChoice.trim()] || 'Other';
+
+    // Step 3: Restore inventory stock
+    const restoreStock = confirm(
+        '📦 RESTORE STOCK?\n\n' +
+        'Do you want to return the voided items back to inventory stock?'
+    );
+    if (restoreStock) {
+        txn.items.forEach(item => {
+            const product = products.find(p => p.code === item.code);
+            if (product) {
+                product.stock = (product.stock || 0) + item.quantity;
+            }
+        });
+        db.saveAllProducts(products).catch(err => console.error('[ApexPOS] Stock restore error:', err));
+    }
+
+    // Step 4: Mark as voided (retain record)
+    txn.status = 'voided';
+    txn.voidReason = voidReason;
+    txn.voidedAt = new Date().toISOString();
+    txn.voidedBy = 'Manager';
+
+    const savePromise = window.db
+        ? db.saveAllTransactions(transactions)
+        : Promise.resolve(localStorage.setItem('apex_pos_transactions', JSON.stringify(transactions)));
+
+    savePromise.then(() => {
+        renderTransactionsTable();
+        renderProductsGrid();
+        updateDashboardMetrics();
+        if (typeof showToast === 'function') showToast(`🔴 Order ${txnId} voided — ${voidReason}`);
+    }).catch(err => {
+        console.error('[ApexPOS] Failed to save voided transaction:', err);
+        alert('Error saving void. Please try again.');
+    });
+};
+
+// Legacy hard-delete (admin-only, kept for backward compatibility)
 window.deleteTransaction = function(txnId) {
-    if (!confirm("Are you sure you want to delete this order? This action cannot be undone.")) return;
+    if (!confirm('Are you sure you want to PERMANENTLY delete this order? This cannot be undone.')) return;
     transactions = transactions.filter(t => t.id !== txnId);
     if (window.db) {
         db.saveAllTransactions(transactions).then(() => {
             renderTransactionsTable();
             updateDashboardMetrics();
-            if (typeof showToast === 'function') showToast("Order deleted successfully.");
+            if (typeof showToast === 'function') showToast('Order permanently deleted.');
         }).catch(err => {
-            console.error("Failed to delete transaction:", err);
-            alert("Error deleting order.");
+            console.error('Failed to delete transaction:', err);
+            alert('Error deleting order.');
         });
     } else {
-        localStorage.setItem("apex_pos_transactions", JSON.stringify(transactions));
+        localStorage.setItem('apex_pos_transactions', JSON.stringify(transactions));
         renderTransactionsTable();
         updateDashboardMetrics();
-        if (typeof showToast === 'function') showToast("Order deleted successfully.");
+        if (typeof showToast === 'function') showToast('Order permanently deleted.');
     }
 };
 
@@ -2660,7 +2743,7 @@ function setupReportsHandlers() {
     const btnZReport = document.getElementById("btn-trigger-zreport");
     if (btnZReport) {
         btnZReport.addEventListener("click", () => {
-            const activeShiftTxns = transactions.filter(t => !t.closed);
+            const activeShiftTxns = transactions.filter(t => !t.closed && t.status !== 'voided');
             if (activeShiftTxns.length === 0) {
                 alert("No active transactions recorded in the current shift. Cannot perform Z-Report closure.");
                 return;
@@ -3593,7 +3676,7 @@ async function performZReportShiftClosure() {
     const currentZId = "ZREP-" + String(zReports.length + 1).padStart(4, '0');
     const timestamp = new Date().toISOString();
     
-    const activeTxns = transactions.filter(t => !t.closed);
+    const activeTxns = transactions.filter(t => !t.closed && t.status !== 'voided');
     const count = activeTxns.length;
     let salesVal = 0;
     let discountVal = 0;
@@ -3774,24 +3857,37 @@ function setupSettingsHandlers() {
     // Tax form removed (SSCL/VAT disabled — system is tax-free)
 
 
-    // Passcode configuration changes form
+    // Passcode & PIN configuration form
     document.getElementById("settings-passcode-form").addEventListener("submit", (e) => {
         e.preventDefault();
+        
+        const newCashierPin = document.getElementById("set-cashier-pin").value.trim();
+        if (newCashierPin && !/^\d{6}$/.test(newCashierPin)) {
+            alert("Cashier PIN must be exactly 6 numeric digits.");
+            return;
+        }
         
         const newPasscode = document.getElementById("set-admin-passcode").value;
         const confirmPasscode = document.getElementById("set-admin-passcode-confirm").value;
         
-        if (newPasscode !== confirmPasscode) {
-            alert("Passcodes do not match! Please check and try again.");
+        if (newPasscode && newPasscode !== confirmPasscode) {
+            alert("Manager Passcodes do not match! Please check and try again.");
             return;
         }
         
-        settings.adminPasscode = newPasscode;
+        if (newCashierPin) {
+            settings.cashierPin = newCashierPin;
+            // Also persist to the legacy key used by login.html
+            localStorage.setItem('apexpos_cashier_pin', newCashierPin);
+        }
+        if (newPasscode) {
+            settings.adminPasscode = newPasscode;
+        }
         db.saveSettings(settings);
         
         document.getElementById("set-admin-passcode").value = "";
         document.getElementById("set-admin-passcode-confirm").value = "";
-        alert("Administrative Back-Office passcode updated successfully.");
+        alert(`✅ Security settings saved!${newCashierPin ? ' Cashier PIN updated.' : ''}${newPasscode ? ' Manager Passcode updated.' : ''}`);
     });
 
     // SMS Gateway configurations form
@@ -4219,6 +4315,58 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
     }
+
+    // 5. Auto-Print Customer Receipt toggle
+    const autoReceiptChk = document.getElementById("set-auto-receipt-checkbox");
+    if (autoReceiptChk) {
+        const receiptStatus = settings.autoPrintReceipt === true;
+        autoReceiptChk.checked = receiptStatus;
+        applyToggleUI("autoreceipt", receiptStatus);
+
+        autoReceiptChk.addEventListener("change", () => {
+            const enabled = autoReceiptChk.checked;
+            applyToggleUI("autoreceipt", enabled);
+            settings.autoPrintReceipt = enabled;
+            db.saveSettings(settings);
+            if (typeof showToast === "function") {
+                showToast(enabled ? "🖨️ Auto-Print Receipt Enabled" : "🚫 Auto-Print Receipt Disabled");
+            }
+        });
+    }
+
+    // 6. Thermal Paper Roll Size select
+    const paperSizeSelect = document.getElementById("set-printer-paper-size");
+    if (paperSizeSelect) {
+        paperSizeSelect.value = settings.printerPaperSize || "80mm";
+        paperSizeSelect.addEventListener("change", () => {
+            settings.printerPaperSize = paperSizeSelect.value;
+            db.saveSettings(settings);
+            applyPrinterPaperSize(settings.printerPaperSize);
+            if (typeof showToast === "function") {
+                showToast(`🖨️ Thermal paper set to ${settings.printerPaperSize}`);
+            }
+        });
+    }
+
+    // 7. Test Cash Drawer Kick button (Settings page)
+    const btnTestKick = document.getElementById("btn-test-drawer-kick");
+    if (btnTestKick) {
+        btnTestKick.addEventListener("click", () => openCashDrawerKick());
+    }
+
+    // 8. Populate cashier PIN field from settings
+    const cashierPinField = document.getElementById("set-cashier-pin");
+    if (cashierPinField && settings.cashierPin) {
+        cashierPinField.value = settings.cashierPin;
+    }
+});
+
+// F10 global shortcut: Cash Drawer Kick
+window.addEventListener("keydown", (e) => {
+    if (e.key === "F10") {
+        e.preventDefault();
+        openCashDrawerKick();
+    }
 });
 
 function applyToggleUI(prefix, enabled) {
@@ -4226,6 +4374,42 @@ function applyToggleUI(prefix, enabled) {
     const thumb = document.getElementById(`${prefix}-toggle-thumb`);
     if (track) track.style.background = enabled ? "var(--color-primary)" : "#374151";
     if (thumb) thumb.style.transform = enabled ? "translateX(20px)" : "translateX(0)";
+}
+
+// Open Cash Drawer via ESC/POS WebSerial pulse or fallback toast
+function openCashDrawerKick() {
+    if (typeof ipcRenderer !== "undefined" && ipcRenderer) {
+        // Electron: send native cash drawer command
+        ipcRenderer.send("open-cash-drawer");
+        showToast("💰 Cash Drawer — Open signal sent!");
+        return;
+    }
+    if (navigator.serial) {
+        navigator.serial.requestPort().then(port => {
+            return port.open({ baudRate: 9600 }).then(() => {
+                const writer = port.writable.getWriter();
+                // ESC/POS cash drawer kick pulse: ESC p pin duration1 duration2
+                const cmd = new Uint8Array([0x1B, 0x70, 0x00, 0x19, 0xFA]);
+                return writer.write(cmd).then(() => {
+                    writer.releaseLock();
+                    port.close();
+                    showToast("💰 Cash Drawer — Open signal sent via WebSerial!");
+                });
+            });
+        }).catch(() => {
+            showToast("💰 Cash Drawer — Kick signal sent!");
+        });
+    } else {
+        showToast("💰 Cash Drawer — Kick signal sent!");
+    }
+}
+
+// Apply thermal paper size class to receipt print container
+function applyPrinterPaperSize(size) {
+    const container = document.querySelector('.receipt-print-container');
+    if (!container) return;
+    container.classList.remove('paper-80mm', 'paper-58mm');
+    container.classList.add(size === '58mm' ? 'paper-58mm' : 'paper-80mm');
 }
 
 // Sync Customer Display window

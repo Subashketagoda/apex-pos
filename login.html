@@ -1064,7 +1064,7 @@
 
             <!-- Footer hint -->
             <div class="card-footer">
-                <p>Cashier PIN: <strong>123456</strong> &nbsp;|&nbsp; Admin login via <strong>Firebase Auth</strong></p>
+                <p id="footer-hint-text">Cashier PIN: <strong id="hint-cashier-pin">123456</strong> &nbsp;|&nbsp; Admin login via <strong>Firebase Auth</strong></p>
             </div>
         </div>
     </div>
@@ -1137,9 +1137,10 @@
     // Update footer hint and Google Sign-In if local mode is active
     if (isLocalMode) {
         document.addEventListener('DOMContentLoaded', () => {
-            const footerHint = document.querySelector('.card-footer p');
+            const footerHint = document.getElementById('footer-hint-text');
+            const dynamicPin = getCashierPin();
             if (footerHint) {
-                footerHint.innerHTML = 'Cashier PIN: <strong>123456</strong> &nbsp;|&nbsp; Admin login via <strong>Local Passcode (Local Server Mode)</strong>';
+                footerHint.innerHTML = `Cashier PIN: <strong>${dynamicPin}</strong> &nbsp;|&nbsp; Admin login via <strong>Local Passcode (Local Server Mode)</strong>`;
             }
             const googleBtn = document.getElementById('google-signin-btn');
             if (googleBtn) {
@@ -1184,9 +1185,18 @@
     // PIN logic
     // ============================================================
     let pinValue = '';
-    const CORRECT_PIN = '123456';
+    // Read cashier PIN dynamically from saved settings (falls back to 123456)
+    function getCashierPin() {
+        try {
+            const s = JSON.parse(localStorage.getItem('apex_pos_settings') || '{}');
+            return s.cashierPin || '123456';
+        } catch(e) { return '123456'; }
+    }
     const pinDots = document.querySelectorAll('.pin-dot');
     const pinDotsDisplay = document.getElementById('pin-dots-display');
+    // Update hint to reflect actual PIN
+    const hintEl = document.getElementById('hint-cashier-pin');
+    if (hintEl) hintEl.textContent = getCashierPin();
 
     function updateDots() {
         pinDots.forEach((dot, i) => {
@@ -1232,8 +1242,8 @@
         icon.style.display    = 'none';
         error.classList.remove('show');
 
-        // Simulate auth (use localStorage like existing app)
-        const storedPin = localStorage.getItem('apexpos_cashier_pin') || CORRECT_PIN;
+        // Read current PIN from settings
+        const storedPin = getCashierPin();
 
         setTimeout(() => {
             if (pinValue === storedPin) {

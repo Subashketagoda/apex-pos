@@ -14,21 +14,19 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="ApexPOS">
-    <link rel="stylesheet" href="style.css?v=30">
-    <!-- Lucide Icons: Local -->
+    <link rel="stylesheet" href="style.css?v=31">
+    
+    <!-- Lucide Icons (deferred for performance) -->
     <script src="lib/lucide.min.js" defer></script>
-    <!-- Chart.js: Local -->
-    <script src="lib/chart.umd.js" defer></script>
 
-    <!-- Firebase SDK (Local — compat mode) -->
+    <!-- Firebase SDK (compat mode — deferred for fast page load) -->
     <script src="lib/firebase-app-compat.js" defer></script>
     <script src="lib/firebase-auth-compat.js" defer></script>
     <script src="lib/firebase-firestore-compat.js" defer></script>
-    <!-- Firebase Config & Cloud DB Abstraction Layer -->
-    <script src="firebase-config.js?v=30" defer></script>
-    <script src="db.js?v=30" defer></script>
-    <!-- Core Application Logic -->
-    <script src="app.js?v=30" defer></script>
+    <script src="firebase-config.js?v=31" defer></script>
+    <script src="db.js?v=31" defer></script>
+    <script src="lib/chart.umd.js" defer></script>
+    <script src="app.js?v=31" defer></script>
 </head>
 <body>
     <!-- ==================== LOADING SPLASH SCREEN ==================== -->
@@ -502,12 +500,13 @@
                                             <th>Customer Phone</th>
                                             <th>Grand Total</th>
                                             <th>Payment Mode</th>
-                                            <th>Action Actions</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody id="transactions-table-body">
                                         <tr>
-                                            <td colspan="6" class="text-center text-muted">No transactions recorded yet.</td>
+                                            <td colspan="7" class="text-center text-muted">No transactions recorded yet.</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -612,19 +611,28 @@
                                     </form>
                                 </div>
 
-                                <!-- Passcode Security Card -->
+                                <!-- Passcode & PIN Security Card -->
                                 <div class="settings-card">
-                                    <h3>Back-Office Passcode Security</h3>
+                                    <h3>🔐 Security & Staff Passcodes</h3>
+                                    <p style="font-size:12px; color:var(--text-muted); margin-bottom:14px;">
+                                        Configure Cashier Quick-Login PIN and Manager Override Passcode.
+                                    </p>
                                     <form id="settings-passcode-form">
                                         <div class="form-group">
-                                            <label for="set-admin-passcode">New Passcode</label>
-                                            <input type="password" id="set-admin-passcode" placeholder="Enter new passcode..." required>
+                                            <label for="set-cashier-pin">Cashier Login PIN (6 Digits)</label>
+                                            <input type="text" id="set-cashier-pin" maxlength="6" pattern="[0-9]{6}" placeholder="123456" value="123456" style="font-family:monospace; font-size:16px; letter-spacing:4px; font-weight:700; text-align:center;">
+                                            <small style="font-size:11px; color:var(--text-muted); display:block; margin-top:3px;">6-digit numeric PIN for cashier front-desk terminal login.</small>
+                                        </div>
+                                        <div class="form-group" style="margin-top:12px;">
+                                            <label for="set-admin-passcode">Manager Override Passcode</label>
+                                            <input type="password" id="set-admin-passcode" placeholder="Enter new manager passcode...">
+                                            <small style="font-size:11px; color:var(--text-muted); display:block; margin-top:3px;">Required for Order Voids, Z-Report shift closures, and Back-Office access.</small>
                                         </div>
                                         <div class="form-group">
-                                            <label for="set-admin-passcode-confirm">Confirm Passcode</label>
-                                            <input type="password" id="set-admin-passcode-confirm" placeholder="Confirm new passcode..." required>
+                                            <label for="set-admin-passcode-confirm">Confirm Manager Passcode</label>
+                                            <input type="password" id="set-admin-passcode-confirm" placeholder="Confirm new manager passcode...">
                                         </div>
-                                        <button type="submit" class="btn-primary">Update Passcode</button>
+                                        <button type="submit" class="btn-primary" style="margin-top:8px;">Save Security Passcodes</button>
                                     </form>
                                 </div>
 
@@ -803,6 +811,53 @@
                                                 transition:transform 0.2s; pointer-events:none;
                                             "></span>
                                         </label>
+                                    </div>
+
+                                    <!-- Auto-Print Customer Receipt on Checkout Toggle -->
+                                    <div id="row-setting-autoreceipt" style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:12px;">
+                                        <div>
+                                            <div style="font-weight:700; font-size:13px;">Auto-Print Customer Receipt</div>
+                                            <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Automatically open print dialog when checkout is completed</div>
+                                        </div>
+                                        <label style="position:relative; display:inline-block; width:44px; height:24px; flex-shrink:0; margin-left:12px;">
+                                            <input type="checkbox" id="set-auto-receipt-checkbox" style="opacity:0;width:0;height:0;">
+                                            <span id="autoreceipt-toggle-track" style="
+                                                position:absolute; cursor:pointer; inset:0;
+                                                background:#374151; border-radius:24px;
+                                                transition:background 0.2s;
+                                            "></span>
+                                            <span id="autoreceipt-toggle-thumb" style="
+                                                position:absolute; content:''; height:18px; width:18px;
+                                                left:3px; bottom:3px; background:#fff; border-radius:50%;
+                                                transition:transform 0.2s; pointer-events:none;
+                                            "></span>
+                                        </label>
+                                    </div>
+
+                                    <!-- Thermal Paper Roll Size -->
+                                    <div class="form-group" style="margin-bottom:12px;">
+                                        <label for="set-printer-paper-size" style="font-weight:700; font-size:13px;">Thermal Paper Roll Width</label>
+                                        <select id="set-printer-paper-size" style="
+                                            width: 100%; padding: 12px; border-radius: var(--radius);
+                                            background: var(--input-bg); border: 1px solid var(--border);
+                                            color: var(--fg); font-family: inherit; font-size: 14px;
+                                            cursor: pointer; margin-top: 4px;
+                                        ">
+                                            <option value="80mm" selected>80mm (Standard Desktop POS Thermal Roll - 3 inch)</option>
+                                            <option value="58mm">58mm (Compact / Mobile Bluetooth Roll - 2.25 inch)</option>
+                                        </select>
+                                        <small style="font-size:11px; color:var(--text-muted); display:block; margin-top:4px;">Adapts receipt preview width and thermal margins automatically.</small>
+                                    </div>
+
+                                    <!-- Cash Drawer Hardware Trigger -->
+                                    <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:12px;">
+                                        <div>
+                                            <div style="font-weight:700; font-size:13px;">💰 Cash Drawer Kick (ESC/POS & F10)</div>
+                                            <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Press <strong>F10</strong> on keyboard anytime to kick open drawer</div>
+                                        </div>
+                                        <button type="button" id="btn-test-drawer-kick" class="btn-primary" style="padding: 6px 14px; font-size: 12px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3);">
+                                            Test Kick
+                                        </button>
                                     </div>
                                 </div>
 

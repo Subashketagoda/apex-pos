@@ -2327,6 +2327,19 @@ button, input, select {
         width: 3in !important; /* Standard 80mm roll width */
         margin: 0 auto !important;
     }
+    /* 58mm compact thermal roll override */
+    .receipt-print-container.paper-58mm {
+        width: 2.05in !important; /* 58mm roll width */
+        font-size: 9pt !important;
+        padding: 8px !important;
+        letter-spacing: -0.3px !important;
+    }
+    .receipt-print-container.paper-58mm .receipt-header h3 {
+        font-size: 13pt !important;
+    }
+    .receipt-print-container.paper-58mm .receipt-row-bold {
+        font-size: 11pt !important;
+    }
 }
 
 /* ==========================================================================
