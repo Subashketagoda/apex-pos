@@ -1,0 +1,1433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ApexPOS — Secure Login</title>
+    <meta name="description" content="Secure login portal for ApexPOS Enterprise Retail Management System">
+
+    <!-- ui-ux-pro-max: Plus Jakarta Sans — Enterprise SaaS Mobile (top recommendation) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+
+    <!-- Firebase SDK (compat mode — deferred for fast page load) -->
+    <script src="lib/firebase-app-compat.js" defer></script>
+    <script src="lib/firebase-auth-compat.js" defer></script>
+    <script src="lib/firebase-firestore-compat.js" defer></script>
+    <script src="firebase-config.js?v=24" defer></script>
+
+    <style>
+        /* ============================================================
+           ui-ux-pro-max Design System Variables
+           Style: Dark Mode OLED + Glassmorphism (fintech palette)
+           Colors: Fintech/Crypto + Micro SaaS blend
+        ============================================================ */
+        :root {
+            /* ui-ux-pro-max: Fintech dark palette */
+            --bg-deep:       #080d16;
+            --bg-base:       #0F172A;
+            --bg-elevated:   #141c30;
+            --surface:       rgba(255, 255, 255, 0.04);
+            --surface-hover: rgba(255, 255, 255, 0.07);
+            --glass:         rgba(15, 23, 42, 0.75);
+
+            /* Cards */
+            --card:          #1a2235;
+            --card-border:   rgba(255, 255, 255, 0.08);
+
+            /* Text */
+            --fg:            #F8FAFC;
+            --fg-muted:      #94A3B8;
+            --fg-subtle:     #475569;
+
+            /* Accent — indigo/violet (existing ApexPOS identity) */
+            --primary:       #6366F1;
+            --primary-hover: #4F46E5;
+            --primary-glow:  rgba(99, 102, 241, 0.35);
+            --secondary:     #8B5CF6;
+            --secondary-glow:rgba(139, 92, 246, 0.25);
+
+            /* Status */
+            --success:       #10B981;
+            --success-glow:  rgba(16, 185, 129, 0.25);
+            --danger:        #EF4444;
+            --danger-glow:   rgba(239, 68, 68, 0.25);
+            --warning:       #F59E0B;
+
+            /* Border / input */
+            --border:        #1e2d4a;
+            --border-focus:  rgba(99, 102, 241, 0.6);
+            --input-bg:      rgba(15, 23, 42, 0.6);
+
+            /* ui-ux-pro-max easing */
+            --ease-expo:     cubic-bezier(0.16, 1, 0.3, 1);
+            --radius:        14px;
+            --radius-sm:     8px;
+            --radius-lg:     20px;
+        }
+
+        /* ============================================================
+           Reset & Base
+        ============================================================ */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body {
+            height: 100%;
+            font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+            background: var(--bg-deep);
+            color: var(--fg);
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ============================================================
+           Full-page Layout
+        ============================================================ */
+        .login-page {
+            position: relative;
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        /* ============================================================
+           Animated Background — ambient blobs (ui-ux-pro-max)
+        ============================================================ */
+        .bg-canvas {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            overflow: hidden;
+            background: radial-gradient(ellipse at 20% 50%, #0d1529 0%, var(--bg-deep) 60%);
+        }
+
+        .blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.18;
+            animation: blobFloat 18s ease-in-out infinite;
+        }
+        .blob-1 {
+            width: 600px; height: 600px;
+            background: radial-gradient(circle, #6366f1, transparent 70%);
+            top: -10%; left: -10%;
+            animation-delay: 0s; animation-duration: 20s;
+        }
+        .blob-2 {
+            width: 500px; height: 500px;
+            background: radial-gradient(circle, #8b5cf6, transparent 70%);
+            bottom: -15%; right: 30%;
+            animation-delay: -6s; animation-duration: 24s;
+        }
+        .blob-3 {
+            width: 400px; height: 400px;
+            background: radial-gradient(circle, #3b82f6, transparent 70%);
+            top: 30%; right: -10%;
+            animation-delay: -12s; animation-duration: 16s;
+        }
+
+        @keyframes blobFloat {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33%       { transform: translate(40px, -30px) scale(1.05); }
+            66%       { transform: translate(-25px, 40px) scale(0.97); }
+        }
+
+        /* Grid overlay */
+        .bg-grid {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background-image:
+                linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px);
+            background-size: 60px 60px;
+        }
+
+        /* ============================================================
+           Left Panel — Brand Hero
+        ============================================================ */
+        .brand-panel {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 60px 64px;
+            border-right: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .brand-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(99,102,241,0.12);
+            border: 1px solid rgba(99,102,241,0.25);
+            border-radius: 999px;
+            padding: 6px 14px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #a5b4fc;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            width: fit-content;
+            margin-bottom: 36px;
+        }
+        .brand-badge::before {
+            content: '';
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: #6366f1;
+            box-shadow: 0 0 6px #6366f1;
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50%       { opacity: 0.5; transform: scale(0.85); }
+        }
+
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+        .logo-icon {
+            width: 56px; height: 56px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 32px rgba(99,102,241,0.5), 0 8px 24px rgba(0,0,0,0.4);
+            flex-shrink: 0;
+        }
+        .logo-icon svg { width: 28px; height: 28px; }
+        .logo-wordmark { font-size: 36px; font-weight: 800; letter-spacing: -1px; line-height: 1; }
+        .logo-wordmark span { color: #8b5cf6; }
+        .logo-sub { font-size: 12px; color: var(--fg-muted); letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
+
+        .brand-headline {
+            font-size: 42px;
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -1.5px;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #F8FAFC 0%, #94A3B8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .brand-sub {
+            font-size: 15px;
+            color: var(--fg-muted);
+            line-height: 1.7;
+            max-width: 420px;
+            margin-bottom: 48px;
+        }
+
+        /* Feature pills */
+        .feature-list {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 18px;
+            background: var(--surface);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius);
+            backdrop-filter: blur(12px);
+            transition: background var(--ease-expo) 0.2s, border-color var(--ease-expo) 0.2s;
+        }
+        .feature-item:hover {
+            background: var(--surface-hover);
+            border-color: rgba(99,102,241,0.2);
+        }
+        .feature-icon {
+            width: 38px; height: 38px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .feature-icon.indigo  { background: rgba(99,102,241,0.15); }
+        .feature-icon.violet  { background: rgba(139,92,246,0.15); }
+        .feature-icon.emerald { background: rgba(16,185,129,0.15); }
+        .feature-icon svg { width: 18px; height: 18px; }
+        .feature-icon.indigo  svg { stroke: #818cf8; }
+        .feature-icon.violet  svg { stroke: #a78bfa; }
+        .feature-icon.emerald svg { stroke: #34d399; }
+        .feature-text strong { font-size: 13px; font-weight: 600; color: var(--fg); display: block; }
+        .feature-text span   { font-size: 12px; color: var(--fg-muted); }
+
+        /* ============================================================
+           Right Panel — Login Card (glassmorphism)
+        ============================================================ */
+        .auth-panel {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 48px 64px;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 420px;
+            background: var(--glass);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-lg);
+            padding: 40px 36px;
+            box-shadow:
+                0 0 0 1px rgba(255,255,255,0.03),
+                0 24px 64px rgba(0,0,0,0.5),
+                0 0 80px rgba(99,102,241,0.06);
+        }
+
+        /* Card header */
+        .card-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .lock-icon-wrap {
+            width: 60px; height: 60px;
+            margin: 0 auto 20px;
+            border-radius: 50%;
+            background: rgba(99,102,241,0.12);
+            border: 1px solid rgba(99,102,241,0.3);
+            display: flex; align-items: center; justify-content: center;
+            position: relative;
+        }
+        .lock-icon-wrap::before {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 50%;
+            border: 1px solid rgba(99,102,241,0.12);
+        }
+        .lock-icon-wrap svg { width: 26px; height: 26px; stroke: #818cf8; }
+        .card-header h1 {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            color: var(--fg);
+            margin-bottom: 6px;
+        }
+        .card-header p {
+            font-size: 13px;
+            color: var(--fg-muted);
+            line-height: 1.5;
+        }
+
+        /* Role selector */
+        .role-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 24px;
+            background: rgba(0,0,0,0.2);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-sm);
+            padding: 4px;
+        }
+        .role-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            padding: 9px 12px;
+            border: none;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--ease-expo) 0.2s;
+            color: var(--fg-muted);
+            background: transparent;
+        }
+        .role-btn svg { width: 14px; height: 14px; }
+        .role-btn.active {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: #fff;
+            box-shadow: 0 2px 12px rgba(99,102,241,0.35);
+        }
+        .role-btn:not(.active):hover { background: var(--surface); color: var(--fg); }
+
+        /* Form */
+        .login-form { display: flex; flex-direction: column; gap: 16px; }
+
+        .form-field { display: flex; flex-direction: column; gap: 6px; }
+        .form-field label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--fg-muted);
+            letter-spacing: 0.3px;
+        }
+        .input-wrap {
+            position: relative;
+        }
+        .input-icon {
+            position: absolute;
+            left: 13px;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+        }
+        .input-icon svg { width: 16px; height: 16px; stroke: var(--fg-subtle); }
+        .form-input {
+            width: 100%;
+            padding: 11px 13px 11px 40px;
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--fg);
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 500;
+            outline: none;
+            transition: border-color var(--ease-expo) 0.2s, box-shadow var(--ease-expo) 0.2s, background var(--ease-expo) 0.2s;
+            -webkit-text-fill-color: var(--fg);
+        }
+        .form-input::placeholder { color: var(--fg-subtle); font-weight: 400; }
+        .form-input:focus {
+            border-color: var(--border-focus);
+            background: rgba(99,102,241,0.05);
+            box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+        }
+        .form-input.error { border-color: var(--danger); }
+        .form-input.error:focus { box-shadow: 0 0 0 3px rgba(239,68,68,0.12); }
+
+        /* Password toggle */
+        .pw-toggle {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--fg-subtle);
+            display: flex; align-items: center; justify-content: center;
+            transition: color 0.15s;
+            padding: 2px;
+        }
+        .pw-toggle:hover { color: var(--fg-muted); }
+        .pw-toggle svg { width: 16px; height: 16px; }
+        .form-input.has-pw-toggle { padding-right: 40px; }
+
+        /* PIN grid */
+        .pin-section { display: flex; flex-direction: column; gap: 6px; }
+        .pin-section label { font-size: 12px; font-weight: 600; color: var(--fg-muted); letter-spacing: 0.3px; }
+        .pin-dots {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            padding: 12px;
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .pin-dots.focused {
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+        }
+        .pin-dot {
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            background: var(--border);
+            transition: background var(--ease-expo) 0.2s, transform var(--ease-expo) 0.2s, box-shadow var(--ease-expo) 0.2s;
+        }
+        .pin-dot.filled {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            box-shadow: 0 0 8px rgba(99,102,241,0.6);
+            transform: scale(1.1);
+        }
+
+        .numpad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 4px;
+        }
+        .numpad-btn {
+            padding: 12px;
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-sm);
+            background: var(--surface);
+            color: var(--fg);
+            font-family: inherit;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--ease-expo) 0.15s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .numpad-btn:hover { background: rgba(99,102,241,0.12); border-color: rgba(99,102,241,0.3); transform: scale(0.97); }
+        .numpad-btn:active { transform: scale(0.93); }
+        .numpad-btn.btn-clear { font-size: 11px; color: var(--fg-muted); font-weight: 700; letter-spacing: 0.5px; }
+        .numpad-btn.btn-back { font-size: 12px; }
+        .numpad-btn.btn-back svg { width: 16px; height: 16px; stroke: var(--fg-muted); }
+
+        /* Options row */
+        .form-options {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .remember-me {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+        .remember-me input[type="checkbox"] {
+            appearance: none;
+            width: 16px; height: 16px;
+            border: 1.5px solid var(--border);
+            border-radius: 4px;
+            background: var(--input-bg);
+            cursor: pointer;
+            transition: all 0.15s;
+            position: relative;
+            flex-shrink: 0;
+        }
+        .remember-me input[type="checkbox"]:checked {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+        .remember-me input[type="checkbox"]:checked::after {
+            content: '';
+            position: absolute;
+            top: 2px; left: 5px;
+            width: 4px; height: 8px;
+            border: 2px solid white;
+            border-top: none; border-left: none;
+            transform: rotate(45deg);
+        }
+        .remember-me span { font-size: 12px; color: var(--fg-muted); }
+        .forgot-link {
+            font-size: 12px;
+            color: #818cf8;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.15s;
+        }
+        .forgot-link:hover { color: #a5b4fc; }
+
+        /* Submit button */
+        .btn-login {
+            width: 100%;
+            padding: 13px 24px;
+            border: none;
+            border-radius: var(--radius-sm);
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all var(--ease-expo) 0.2s;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(99,102,241,0.35);
+            margin-top: 4px;
+        }
+        .btn-login::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, #818cf8, #a78bfa);
+            opacity: 0;
+            transition: opacity var(--ease-expo) 0.2s;
+        }
+        .btn-login:hover::before { opacity: 1; }
+        .btn-login:hover { transform: translateY(-1px); box-shadow: 0 8px 28px rgba(99,102,241,0.45); }
+        .btn-login:active { transform: translateY(0); }
+        .btn-login span, .btn-login svg { position: relative; z-index: 1; }
+        .btn-login svg { width: 18px; height: 18px; }
+        .btn-login:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+        /* Loading spinner */
+        .spinner {
+            width: 18px; height: 18px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            display: none;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Error message */
+        .error-msg {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.25);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            color: #fca5a5;
+            font-weight: 500;
+        }
+        .error-msg.show { display: flex; animation: shake 0.4s var(--ease-expo); }
+        .error-msg svg { width: 16px; height: 16px; stroke: #f87171; flex-shrink: 0; }
+
+        /* Success state */
+        .success-overlay {
+            position: absolute;
+            inset: 0;
+            border-radius: var(--radius-lg);
+            background: rgba(16,185,129,0.08);
+            border: 1px solid rgba(16,185,129,0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s;
+            backdrop-filter: blur(4px);
+        }
+        .login-card { position: relative; }
+        .success-overlay.show { opacity: 1; pointer-events: auto; }
+        .success-icon {
+            width: 64px; height: 64px;
+            border-radius: 50%;
+            background: rgba(16,185,129,0.15);
+            border: 2px solid rgba(16,185,129,0.4);
+            display: flex; align-items: center; justify-content: center;
+            animation: successPop 0.5s var(--ease-expo);
+        }
+        .success-icon svg { width: 32px; height: 32px; stroke: #34d399; }
+        @keyframes successPop {
+            0%   { transform: scale(0.5); opacity: 0; }
+            70%  { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .success-overlay p { font-size: 16px; font-weight: 700; color: #34d399; }
+        .success-overlay small { font-size: 13px; color: var(--fg-muted); }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%       { transform: translateX(-6px); }
+            40%       { transform: translateX(6px); }
+            60%       { transform: translateX(-4px); }
+            80%       { transform: translateX(4px); }
+        }
+
+        /* Divider */
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--fg-subtle);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--card-border);
+        }
+
+        /* Footer */
+        .card-footer {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .card-footer p {
+            font-size: 11px;
+            color: var(--fg-subtle);
+        }
+        .card-footer strong { color: var(--fg-muted); }
+
+        /* Outer footer */
+        .page-footer {
+            position: fixed;
+            bottom: 24px;
+            left: 0; right: 0;
+            text-align: center;
+            font-size: 11px;
+            color: var(--fg-subtle);
+            z-index: 2;
+        }
+
+        /* ============================================================
+           Responsive
+        ============================================================ */
+        @media (max-width: 900px) {
+            .login-page { grid-template-columns: 1fr; }
+            .brand-panel { display: none; }
+            .auth-panel { padding: 40px 24px; }
+        }
+
+        /* ============================================================
+           Scroll lock for PIN input (hidden real input)
+        ============================================================ */
+        #pin-real-input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+            width: 1px; height: 1px;
+        }
+
+        /* ===================== Custom Alert Dialog ===================== */
+        .custom-alert-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 999999;
+            background: rgba(8, 13, 22, 0.75);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease, visibility 0.2s ease;
+        }
+
+        .custom-alert-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .custom-alert-card {
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.5);
+            padding: 24px;
+            max-width: 400px;
+            width: 90%;
+            transform: scale(0.9) translateY(10px);
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .custom-alert-overlay.active .custom-alert-card {
+            transform: scale(1) translateY(0);
+        }
+
+        .custom-alert-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .custom-alert-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: rgba(99, 102, 241, 0.15);
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .custom-alert-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--fg);
+        }
+
+        .custom-alert-body {
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--fg-muted);
+            white-space: pre-line;
+        }
+
+        .custom-alert-footer {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 8px;
+        }
+
+        .custom-alert-btn {
+            padding: 10px 24px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+            color: #fff;
+            font-weight: 700;
+            font-size: 14px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .custom-alert-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(99, 102, 241, 0.35);
+        }
+
+        .custom-alert-btn:active {
+            transform: scale(0.97);
+        }
+    </style>
+</head>
+<body>
+
+<!-- Animated background -->
+<div class="bg-canvas">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+</div>
+<div class="bg-grid"></div>
+
+<div class="login-page">
+
+    <!-- ==================== LEFT: Brand Panel ==================== -->
+    <div class="brand-panel">
+        <div class="brand-badge">Enterprise Retail System</div>
+
+        <div class="brand-logo">
+            <div class="logo-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect width="20" height="14" x="2" y="5" rx="2"/>
+                    <line x1="2" x2="22" y1="10" y2="10"/>
+                </svg>
+            </div>
+            <div>
+                <div class="logo-wordmark">Apex<span>POS</span></div>
+                <div class="logo-sub">Point of Sale</div>
+            </div>
+        </div>
+
+        <h2 class="brand-headline">The Command Center<br>for Modern Retail</h2>
+        <p class="brand-sub">
+            Manage your entire retail operation from one powerful platform.
+            Real-time analytics, smart inventory, and seamless checkout — all secured behind enterprise-grade authentication.
+        </p>
+
+        <div class="feature-list">
+            <div class="feature-item">
+                <div class="feature-icon indigo">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 3h18v4H3z"/><path d="M3 11h18v4H3z"/><path d="M3 19h18v2H3z"/>
+                    </svg>
+                </div>
+                <div class="feature-text">
+                    <strong>Cashier Terminal</strong>
+                    <span>Barcode scanning, cart management & fast checkout</span>
+                </div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon violet">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/>
+                        <line x1="6" x2="6" y1="20" y2="14"/>
+                    </svg>
+                </div>
+                <div class="feature-text">
+                    <strong>Sales Analytics</strong>
+                    <span>Revenue trends, top sellers & financial reports</span>
+                </div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon emerald">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
+                    </svg>
+                </div>
+                <div class="feature-text">
+                    <strong>Inventory Master</strong>
+                    <span>Stock control, low-stock alerts & Z-Reports</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== RIGHT: Auth Panel ==================== -->
+    <div class="auth-panel">
+        <div class="login-card" id="login-card">
+
+            <!-- Success overlay -->
+            <div class="success-overlay" id="success-overlay">
+                <div class="success-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 6 9 17l-5-5"/>
+                    </svg>
+                </div>
+                <p>Access Granted</p>
+                <small>Redirecting to dashboard...</small>
+            </div>
+
+            <!-- Card header -->
+            <div class="card-header">
+                <div class="lock-icon-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                </div>
+                <h1>Secure Login</h1>
+                <p>Sign in to access your ApexPOS terminal</p>
+            </div>
+
+            <!-- Role selector -->
+            <div class="role-selector" id="role-selector">
+                <button class="role-btn active" id="role-cashier" data-role="cashier">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/>
+                        <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>
+                    </svg>
+                    Cashier
+                </button>
+                <button class="role-btn" id="role-admin" data-role="admin">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
+                    Back-Office
+                </button>
+            </div>
+
+            <!-- Cashier Login Form (PIN) -->
+            <div id="cashier-login">
+                <div class="pin-section">
+                    <label>Cashier PIN</label>
+                    <div class="pin-dots" id="pin-dots-display">
+                        <div class="pin-dot" id="dot-0"></div>
+                        <div class="pin-dot" id="dot-1"></div>
+                        <div class="pin-dot" id="dot-2"></div>
+                        <div class="pin-dot" id="dot-3"></div>
+                        <div class="pin-dot" id="dot-4"></div>
+                        <div class="pin-dot" id="dot-5"></div>
+                    </div>
+                </div>
+                <input type="tel" id="pin-real-input" maxlength="6" inputmode="numeric" autocomplete="off">
+
+                <div class="numpad" id="pin-numpad">
+                    <button class="numpad-btn" data-digit="1">1</button>
+                    <button class="numpad-btn" data-digit="2">2</button>
+                    <button class="numpad-btn" data-digit="3">3</button>
+                    <button class="numpad-btn" data-digit="4">4</button>
+                    <button class="numpad-btn" data-digit="5">5</button>
+                    <button class="numpad-btn" data-digit="6">6</button>
+                    <button class="numpad-btn" data-digit="7">7</button>
+                    <button class="numpad-btn" data-digit="8">8</button>
+                    <button class="numpad-btn" data-digit="9">9</button>
+                    <button class="numpad-btn btn-clear" data-digit="clear">CLR</button>
+                    <button class="numpad-btn" data-digit="0">0</button>
+                    <button class="numpad-btn btn-back" data-digit="back">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4-4 4-4h12a2 2 0 0 1 2 2z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Admin Login Form (Firebase Email/Password + Google) -->
+            <form class="login-form" id="admin-login" style="display:none;" novalidate>
+                <div class="form-field">
+                    <label for="admin-username">Email Address</label>
+                    <div class="input-wrap">
+                        <div class="input-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect width="20" height="16" x="2" y="4" rx="2"/>
+                                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+                            </svg>
+                        </div>
+                        <input
+                            type="email"
+                            id="admin-username"
+                            class="form-input"
+                            placeholder="admin@yourstore.com"
+                            autocomplete="email"
+                            required
+                        >
+                    </div>
+                </div>
+
+                <div class="form-field">
+                    <label for="admin-password">Password</label>
+                    <div class="input-wrap">
+                        <div class="input-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                            </svg>
+                        </div>
+                        <input
+                            type="password"
+                            id="admin-password"
+                            class="form-input has-pw-toggle"
+                            placeholder="••••••••"
+                            autocomplete="current-password"
+                            required
+                        >
+                        <button type="button" class="pw-toggle" id="pw-toggle-btn" aria-label="Toggle password visibility">
+                            <svg id="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-options">
+                    <label class="remember-me">
+                        <input type="checkbox" id="remember-me">
+                        <span>Keep me signed in</span>
+                    </label>
+                    <a href="#" class="forgot-link" id="forgot-password-link">Forgot password?</a>
+                </div>
+
+                <!-- Error message -->
+                <div class="error-msg" id="admin-error">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/>
+                        <line x1="12" x2="12.01" y1="16" y2="16"/>
+                    </svg>
+                    <span id="admin-error-text">Invalid credentials. Please try again.</span>
+                </div>
+
+                <button type="submit" class="btn-login" id="admin-login-btn">
+                    <div class="spinner" id="admin-spinner"></div>
+                    <svg id="login-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                        <polyline points="10 17 15 12 10 7"/>
+                        <line x1="15" x2="3" y1="12" y2="12"/>
+                    </svg>
+                    <span>Unlock Back-Office</span>
+                </button>
+
+                <!-- Divider -->
+                <div style="display:flex;align-items:center;gap:12px;margin:4px 0;">
+                    <div style="flex:1;height:1px;background:var(--border);"></div>
+                    <span style="color:var(--fg-subtle);font-size:12px;font-weight:500;">OR</span>
+                    <div style="flex:1;height:1px;background:var(--border);"></div>
+                </div>
+
+                <!-- Google Sign-In Button -->
+                <button type="button" id="google-signin-btn" style="
+                    display:flex;align-items:center;justify-content:center;gap:10px;
+                    width:100%;padding:13px 20px;border-radius:var(--radius);
+                    background:rgba(255,255,255,0.06);border:1px solid var(--card-border);
+                    color:var(--fg);font-family:inherit;font-size:14px;font-weight:600;
+                    cursor:pointer;transition:all 0.2s var(--ease-expo);
+                    letter-spacing:0.01em;
+                " onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.06)'">
+                    <svg width="18" height="18" viewBox="0 0 48 48">
+                        <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.8 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.5 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/>
+                        <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19.1 13 24 13c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.5 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+                        <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.3 35.5 26.8 36.5 24 36.5c-5.3 0-9.7-3.2-11.4-7.7L6 34.1C9.4 39.8 16.3 44 24 44z"/>
+                        <path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.3 4.1-4.2 5.4l.1-.1 6.2 5.2C37 38.3 44 33 44 24c0-1.3-.1-2.6-.4-3.9z"/>
+                    </svg>
+                    Sign in with Google
+                </button>
+            </form>
+
+            <!-- Cashier submit button (shown below numpad) -->
+            <div id="cashier-submit-area" style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px;">
+                <div class="error-msg" id="cashier-error">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/>
+                        <line x1="12" x2="12.01" y1="16" y2="16"/>
+                    </svg>
+                    <span>Incorrect PIN. Please try again.</span>
+                </div>
+                <button class="btn-login" id="cashier-login-btn">
+                    <div class="spinner" id="cashier-spinner"></div>
+                    <svg id="cashier-login-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                        <polyline points="10 17 15 12 10 7"/>
+                        <line x1="15" x2="3" y1="12" y2="12"/>
+                    </svg>
+                    <span>Enter Terminal</span>
+                </button>
+            </div>
+
+            <!-- Footer hint -->
+            <div class="card-footer">
+                <p>Cashier PIN: <strong>123456</strong> &nbsp;|&nbsp; Admin login via <strong>Firebase Auth</strong></p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="page-footer">
+    ApexPOS v2.5 &nbsp;·&nbsp; &copy; 2026 Apex Retail Systems &nbsp;·&nbsp; <span style="color: #6366f1;">Secured Connection</span>
+</div>
+
+<script>
+    // Custom alert system to override the browser default alert popup
+    window.alert = function(message, callback) {
+        let overlay = document.getElementById("custom-alert-overlay");
+        if (!overlay) {
+            overlay = document.createElement("div");
+            overlay.id = "custom-alert-overlay";
+            overlay.className = "custom-alert-overlay";
+            overlay.innerHTML = `
+                <div class="custom-alert-card" id="custom-alert-card">
+                    <div class="custom-alert-header">
+                        <div class="custom-alert-icon">
+                            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                        </div>
+                        <div class="custom-alert-title">System Message</div>
+                    </div>
+                    <div class="custom-alert-body" id="custom-alert-body-content"></div>
+                    <div class="custom-alert-footer">
+                        <button class="custom-alert-btn" id="custom-alert-confirm-btn">OK</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+        }
+
+        const bodyContent = document.getElementById("custom-alert-body-content");
+        const confirmBtn = document.getElementById("custom-alert-confirm-btn");
+
+        bodyContent.textContent = message;
+
+        // Show the modal
+        setTimeout(() => {
+            overlay.classList.add("active");
+        }, 10);
+
+        const handleConfirm = () => {
+            overlay.classList.remove("active");
+            confirmBtn.removeEventListener("click", handleConfirm);
+            document.removeEventListener("keydown", handleKeyDown);
+            if (typeof callback === "function") {
+                callback();
+            }
+        };
+
+        const handleKeyDown = (e) => {
+            if (e.key === "Enter" || e.key === "Escape" || e.key === " ") {
+                e.preventDefault();
+                handleConfirm();
+            }
+        };
+
+        confirmBtn.addEventListener("click", handleConfirm);
+        document.addEventListener("keydown", handleKeyDown);
+    };
+
+    // Check database mode (Cloud vs Local Server)
+    const dbMode = localStorage.getItem('apexpos_db_mode') || 'cloud';
+    const isLocalMode = dbMode === 'local';
+
+    // Update footer hint and Google Sign-In if local mode is active
+    if (isLocalMode) {
+        document.addEventListener('DOMContentLoaded', () => {
+            const footerHint = document.querySelector('.card-footer p');
+            if (footerHint) {
+                footerHint.innerHTML = 'Cashier PIN: <strong>123456</strong> &nbsp;|&nbsp; Admin login via <strong>Local Passcode (Local Server Mode)</strong>';
+            }
+            const googleBtn = document.getElementById('google-signin-btn');
+            if (googleBtn) {
+                googleBtn.disabled = true;
+                googleBtn.style.opacity = '0.4';
+                googleBtn.title = 'Google Sign-in disabled in Local Server Mode';
+            }
+        });
+    }
+
+    // ============================================================
+    // Role switcher
+    // ============================================================
+    const roleButtons  = document.querySelectorAll('.role-btn');
+    const cashierLogin = document.getElementById('cashier-login');
+    const adminLogin   = document.getElementById('admin-login');
+    const cashierArea  = document.getElementById('cashier-submit-area');
+    let   currentRole  = 'cashier';
+
+    roleButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            roleButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentRole = btn.dataset.role;
+
+            if (currentRole === 'cashier') {
+                cashierLogin.style.display = 'block';
+                cashierArea.style.display  = 'flex';
+                adminLogin.style.display   = 'none';
+                resetPin();
+            } else {
+                cashierLogin.style.display = 'none';
+                cashierArea.style.display  = 'none';
+                adminLogin.style.display   = 'flex';
+                document.getElementById('admin-username').focus();
+            }
+            clearErrors();
+        });
+    });
+
+    // ============================================================
+    // PIN logic
+    // ============================================================
+    let pinValue = '';
+    const CORRECT_PIN = '123456';
+    const pinDots = document.querySelectorAll('.pin-dot');
+    const pinDotsDisplay = document.getElementById('pin-dots-display');
+
+    function updateDots() {
+        pinDots.forEach((dot, i) => {
+            dot.classList.toggle('filled', i < pinValue.length);
+        });
+    }
+    function resetPin() {
+        pinValue = '';
+        updateDots();
+    }
+
+    document.querySelectorAll('.numpad-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const d = btn.dataset.digit;
+            if (d === 'clear') { resetPin(); return; }
+            if (d === 'back')  { pinValue = pinValue.slice(0, -1); updateDots(); return; }
+            if (pinValue.length < 6) { pinValue += d; updateDots(); }
+            // Auto-submit on 6 digits
+            if (pinValue.length === 6) setTimeout(submitCashier, 200);
+        });
+    });
+
+    // Also support keyboard PIN entry
+    document.addEventListener('keydown', (e) => {
+        if (currentRole !== 'cashier') return;
+        if (e.key >= '0' && e.key <= '9' && pinValue.length < 6) {
+            pinValue += e.key;
+            updateDots();
+            if (pinValue.length === 6) setTimeout(submitCashier, 200);
+        }
+        if (e.key === 'Backspace') { pinValue = pinValue.slice(0, -1); updateDots(); }
+        if (e.key === 'Escape')    resetPin();
+    });
+
+    function submitCashier() {
+        const spinner = document.getElementById('cashier-spinner');
+        const icon    = document.getElementById('cashier-login-icon');
+        const btn     = document.getElementById('cashier-login-btn');
+        const error   = document.getElementById('cashier-error');
+
+        btn.disabled = true;
+        spinner.style.display = 'block';
+        icon.style.display    = 'none';
+        error.classList.remove('show');
+
+        // Simulate auth (use localStorage like existing app)
+        const storedPin = localStorage.getItem('apexpos_cashier_pin') || CORRECT_PIN;
+
+        setTimeout(() => {
+            if (pinValue === storedPin) {
+                showSuccess('cashier');
+            } else {
+                spinner.style.display = 'none';
+                icon.style.display    = 'block';
+                btn.disabled = false;
+                error.classList.add('show');
+                resetPin();
+            }
+        }, 800);
+    }
+
+    document.getElementById('cashier-login-btn').addEventListener('click', () => {
+        if (pinValue.length === 0) {
+            document.getElementById('cashier-error').classList.add('show');
+            document.getElementById('cashier-error').querySelector('span').textContent = 'Please enter your PIN first.';
+            return;
+        }
+        if (pinValue.length < 6) {
+            document.getElementById('cashier-error').classList.add('show');
+            document.getElementById('cashier-error').querySelector('span').textContent = 'PIN must be 6 digits.';
+            return;
+        }
+        submitCashier();
+    });
+
+    // ============================================================
+    // Admin form logic — Firebase Authentication
+    // ============================================================
+
+    function showAdminError(msg) {
+        const error  = document.getElementById('admin-error');
+        const errTxt = document.getElementById('admin-error-text');
+        errTxt.textContent = msg;
+        error.classList.add('show');
+    }
+
+    function setAdminLoading(loading) {
+        const spinner = document.getElementById('admin-spinner');
+        const icon    = document.getElementById('login-icon');
+        const btn     = document.getElementById('admin-login-btn');
+        btn.disabled          = loading;
+        spinner.style.display = loading ? 'block' : 'none';
+        icon.style.display    = loading ? 'none'  : 'block';
+    }
+
+    function getFirebaseAuthErrorMsg(code) {
+        const msgs = {
+            'auth/user-not-found':      'No account found with this email.',
+            'auth/wrong-password':      'Incorrect password. Please try again.',
+            'auth/invalid-email':       'Invalid email address format.',
+            'auth/too-many-requests':   'Too many attempts. Please wait and try again.',
+            'auth/invalid-credential':  'Invalid email or password.',
+            'auth/network-request-failed': 'Network error. Check your connection.',
+            'auth/popup-closed-by-user':'Google sign-in was cancelled.',
+            'auth/cancelled-popup-request': 'Sign-in cancelled.',
+            'auth/unauthorized-domain': 'This domain is not authorised. Open via localhost or the hosted URL.'
+        };
+        return msgs[code] || 'Authentication failed. Please try again.';
+    }
+
+    // Email + Password sign-in
+    document.getElementById('admin-login').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email    = document.getElementById('admin-username').value.trim();
+        const password = document.getElementById('admin-password').value;
+        const error    = document.getElementById('admin-error');
+
+        if (!email || !password) {
+            showAdminError('Please fill in all fields.');
+            return;
+        }
+
+        setAdminLoading(true);
+        error.classList.remove('show');
+
+        // Bypassing Firebase Auth if Local Server Mode is active
+        if (isLocalMode) {
+            const storedSettings = JSON.parse(localStorage.getItem('apex_pos_settings')) || {};
+            const localPasscode = storedSettings.adminPasscode || 'admin123';
+            
+            setTimeout(() => {
+                if (password === localPasscode) {
+                    showSuccess('admin');
+                } else {
+                    setAdminLoading(false);
+                    showAdminError('Incorrect passcode. Local access denied.');
+                    document.getElementById('admin-password').classList.add('error');
+                    document.getElementById('admin-password').value = '';
+                    document.getElementById('admin-password').focus();
+                }
+            }, 600);
+            return;
+        }
+
+        try {
+            // Use Firebase Auth persistence based on "Keep me signed in" checkbox
+            const persistence = document.getElementById('remember-me').checked
+                ? firebase.auth.Auth.Persistence.LOCAL
+                : firebase.auth.Auth.Persistence.SESSION;
+            await firebase.auth().setPersistence(persistence);
+
+            await firebase.auth().signInWithEmailAndPassword(email, password);
+            showSuccess('admin');
+        } catch (err) {
+            setAdminLoading(false);
+            showAdminError(getFirebaseAuthErrorMsg(err.code));
+            document.getElementById('admin-password').classList.add('error');
+            document.getElementById('admin-password').value = '';
+            document.getElementById('admin-password').focus();
+        }
+    });
+
+    // Google Sign-In
+    document.getElementById('google-signin-btn').addEventListener('click', async () => {
+        const error = document.getElementById('admin-error');
+        error.classList.remove('show');
+        document.getElementById('google-signin-btn').disabled = true;
+        document.getElementById('google-signin-btn').style.opacity = '0.6';
+
+        try {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            await firebase.auth().signInWithPopup(provider);
+            showSuccess('admin');
+        } catch (err) {
+            document.getElementById('google-signin-btn').disabled = false;
+            document.getElementById('google-signin-btn').style.opacity = '1';
+            showAdminError(getFirebaseAuthErrorMsg(err.code));
+        }
+    });
+
+    // Forgot password
+    document.getElementById('forgot-password-link').addEventListener('click', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('admin-username').value.trim();
+        if (!email) {
+            showAdminError('Enter your email address above first.');
+            return;
+        }
+        try {
+            await firebase.auth().sendPasswordResetEmail(email);
+            alert(`Password reset email sent to ${email}. Check your inbox.`);
+        } catch (err) {
+            showAdminError(getFirebaseAuthErrorMsg(err.code));
+        }
+    });
+
+    // Clear error on input
+    document.getElementById('admin-password').addEventListener('input', () => {
+        document.getElementById('admin-password').classList.remove('error');
+        document.getElementById('admin-error').classList.remove('show');
+    });
+
+    // Password toggle
+    document.getElementById('pw-toggle-btn').addEventListener('click', () => {
+        const pw   = document.getElementById('admin-password');
+        const icon = document.getElementById('eye-icon');
+        if (pw.type === 'password') {
+            pw.type = 'text';
+            icon.innerHTML = `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                              <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                              <line x1="1" y1="1" x2="23" y2="23"/>`;
+        } else {
+            pw.type = 'password';
+            icon.innerHTML = `<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>`;
+        }
+    });
+
+    // ============================================================
+    // Success transition
+    // ============================================================
+    function showSuccess(role) {
+        const overlay = document.getElementById('success-overlay');
+        overlay.classList.add('show');
+        // Redirect after short delay
+        setTimeout(() => {
+            // Pass role info to main app if needed
+            sessionStorage.setItem('apexpos_login_role', role);
+            window.location.href = 'index.html';
+        }, 1800);
+    }
+
+    function clearErrors() {
+        document.querySelectorAll('.error-msg').forEach(el => el.classList.remove('show'));
+        document.querySelectorAll('.form-input').forEach(el => el.classList.remove('error'));
+    }
+
+    // PIN dots click to focus (mobile UX)
+    document.getElementById('pin-dots-display').addEventListener('click', () => {
+        document.getElementById('pin-real-input').focus();
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ApexPOS — Digital Invoice Receipt</title>
+    <!-- Modern typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons: Local -->
+    <script src="lib/lucide.min.js"></script>
+
+    <!-- Firebase SDK (Local — compat mode) -->
+    <script src="lib/firebase-app-compat.js"></script>
+    <script src="lib/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js?v=24"></script>
+
+    <style>
+        :root {
+            --bg-dark: #090d16;
+            --bg-card: #111827;
+            --color-primary: #10b981; /* Emerald */
+            --color-secondary: #8b5cf6; /* Violet */
+            --text-color: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --radius-md: 12px;
+            --radius-lg: 20px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            background-image: radial-gradient(circle at top right, rgba(16, 185, 129, 0.08), transparent 400px),
+                              radial-gradient(circle at bottom left, rgba(139, 92, 246, 0.08), transparent 400px);
+        }
+
+        .receipt-container {
+            width: 100%;
+            max-width: 440px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            animation: scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes scaleIn {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .receipt-status-header {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(139, 92, 246, 0.1));
+            padding: 24px;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .status-icon {
+            width: 48px;
+            height: 48px;
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--color-primary);
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 12px;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .receipt-status-header h2 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .receipt-status-header p {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .receipt-body {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .store-info {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .store-info h3 {
+            font-size: 20px;
+            font-weight: 800;
+            color: #ffffff;
+            margin-bottom: 6px;
+        }
+
+        .store-info p {
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .receipt-divider {
+            border-top: 1px dashed var(--border-color);
+            margin: 5px 0;
+        }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            font-size: 12px;
+        }
+
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .meta-item span {
+            color: var(--text-muted);
+        }
+
+        .meta-item strong {
+            color: #ffffff;
+        }
+
+        .items-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .item-row {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .item-main {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .item-name {
+            color: #ffffff;
+        }
+
+        .item-price {
+            font-family: 'Share Tech Mono', monospace;
+            color: #ffffff;
+        }
+
+        .item-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .totals-block {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            border: 1px solid var(--border-color);
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+        }
+
+        .total-row.grand {
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--color-primary);
+            border-top: 1px dashed var(--border-color);
+            padding-top: 10px;
+            margin-top: 4px;
+        }
+
+        .total-row span {
+            color: var(--text-muted);
+        }
+
+        .total-row.grand span {
+            color: #ffffff;
+        }
+
+        .total-row strong {
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        .receipt-footer {
+            padding: 20px 24px 24px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            background: rgba(0, 0, 0, 0.15);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .footer-note {
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        .btn-action {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 12px;
+            border-radius: var(--radius-md);
+            border: none;
+            background: var(--color-primary);
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+            text-decoration: none;
+        }
+
+        .btn-action:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        /* Error state styling */
+        .error-container {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .error-container i {
+            font-size: 48px;
+            color: #ef4444;
+            margin-bottom: 16px;
+            display: block;
+        }
+
+        .error-container h3 {
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+
+        .error-container p {
+            font-size: 13px;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        /* Print formatting */
+        @media print {
+            body {
+                background: white;
+                color: black;
+                padding: 0;
+            }
+            .receipt-container {
+                border: none;
+                box-shadow: none;
+                max-width: 100%;
+                width: 100%;
+            }
+            .btn-action, .receipt-status-header {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="receipt-container" id="main-container">
+        <!-- Loader / Status indicator -->
+        <div style="text-align: center; padding: 60px 20px;" id="receipt-loader">
+            <div style="display:inline-block; width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 1s infinite linear;"></div>
+            <p style="margin-top: 15px; font-size: 14px; color: var(--text-muted);">Retrieving e-receipt details...</p>
+        </div>
+    </div>
+
+    <script>
+        // Spinning loader animation
+        if (!document.getElementById("spin-style")) {
+            const style = document.createElement("style");
+            style.id = "spin-style";
+            style.innerHTML = "@keyframes spin { to { transform: rotate(360deg); } }";
+            document.head.appendChild(style);
+        }
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            const container = document.getElementById("main-container");
+            const urlParams = new URLSearchParams(window.location.search);
+            const txnId = urlParams.get('id');
+
+            if (!txnId) {
+                renderError("Invalid URL", "No receipt invoice identifier provided. Please check your e-bill link.");
+                return;
+            }
+
+            let transaction = null;
+
+            // 0. Try instant local cache first (avoids race condition during checkout printing)
+            try {
+                const cachedTxnStr = localStorage.getItem('apex_pos_last_printed_txn');
+                if (cachedTxnStr) {
+                    const cachedTxn = JSON.parse(cachedTxnStr);
+                    if (cachedTxn && cachedTxn.id === txnId) {
+                        transaction = cachedTxn;
+                        console.log('[E-Receipt] Loaded from local print cache');
+                    }
+                }
+            } catch (err) {
+                console.warn('[E-Receipt] Failed to read from local print cache:', err);
+            }
+
+            if (!transaction) {
+                // 1. Try fetching from Cloud Firestore
+                if (typeof isFirebaseConfigured !== "undefined" && isFirebaseConfigured && firestoreDb) {
+                    try {
+                        const snap = await firestoreDb.collection('transactions').doc(txnId).get();
+                        if (snap.exists) {
+                            transaction = snap.data();
+                        }
+                    } catch (err) {
+                        console.warn('[E-Receipt] Firestore retrieval failed, checking local fallback:', err);
+                    }
+                }
+            }
+
+            if (!transaction) {
+                // 2. Fallback to LocalStorage (useful for testing on the POS terminal directly)
+                try {
+                    const localTxns = JSON.parse(localStorage.getItem("apex_pos_transactions")) || [];
+                    transaction = localTxns.find(t => t.id === txnId);
+                } catch (err) {
+                    console.error('[E-Receipt] Local storage retrieval failed:', err);
+                }
+            }
+
+            if (!transaction) {
+                renderError("Receipt Not Found", `Invoice with identifier "${txnId}" could not be retrieved from the server. Ensure that synchronization is active.`);
+                return;
+            }
+
+            // Render the transaction receipt beautifully
+            renderReceipt(transaction);
+        });
+
+        function renderReceipt(txn) {
+            const container = document.getElementById("main-container");
+            
+            const companyName = txn.companyName || "Apex Retail (Pvt) Ltd";
+            const companyAddress = txn.companyAddress || "No 15, Galle Road, Colombo 03, Sri Lanka";
+            const companyPhone = txn.companyPhone || "+94 11 234 5678";
+            const formattedDate = new Date(txn.timestamp).toLocaleString('en-US', {
+                year: 'numeric', month: 'long', day: 'numeric',
+                hour: '2-digit', minute: '2-digit', second: '2-digit'
+            });
+
+            let itemsHTML = "";
+            txn.items.forEach(item => {
+                itemsHTML += `
+                    <div class="item-row">
+                        <div class="item-main">
+                            <span class="item-name">${item.name}</span>
+                            <span class="item-price">LKR ${item.total.toFixed(2)}</span>
+                        </div>
+                        <div class="item-sub">
+                            ${item.quantity} &times; LKR ${item.price.toFixed(2)}
+                        </div>
+                    </div>
+                `;
+            });
+
+            const subtotal = txn.subtotal || 0;
+            const discount = txn.discount || 0;
+            const grandTotal = txn.grandTotal || 0;
+            const changeDue = txn.changeDue || 0;
+
+            container.innerHTML = `
+                <div class="receipt-status-header">
+                    <div class="status-icon">
+                        <i data-lucide="check" style="width: 24px; height: 24px;"></i>
+                    </div>
+                    <h2>Payment Successful</h2>
+                    <p>Thank you for your payment!</p>
+                </div>
+                
+                <div class="receipt-body">
+                    <div class="store-info">
+                        <h3>${companyName}</h3>
+                        <p>${companyAddress}</p>
+                        <p>Helpline: ${companyPhone}</p>
+                    </div>
+
+                    <div class="receipt-divider"></div>
+
+                    <div class="meta-grid">
+                        <div class="meta-item">
+                            <span>Receipt ID</span>
+                            <strong>#${txn.id}</strong>
+                        </div>
+                        <div class="meta-item">
+                            <span>Date & Time</span>
+                            <strong>${formattedDate}</strong>
+                        </div>
+                        <div class="meta-item">
+                            <span>Payment Mode</span>
+                            <strong>${(txn.paymentMode || 'cash').toUpperCase()}</strong>
+                        </div>
+                        <div class="meta-item">
+                            <span>Customer Phone</span>
+                            <strong>${txn.customerPhone || 'N/A'}</strong>
+                        </div>
+                    </div>
+
+                    <div class="receipt-divider"></div>
+
+                    <div class="items-list">
+                        ${itemsHTML}
+                    </div>
+
+                    <div class="receipt-divider"></div>
+
+                    <div class="totals-block">
+                        <div class="total-row">
+                            <span>Subtotal</span>
+                            <strong>LKR ${subtotal.toFixed(2)}</strong>
+                        </div>
+                        <div class="total-row">
+                            <span>Discounts</span>
+                            <strong>- LKR ${discount.toFixed(2)}</strong>
+                        </div>
+                        <div class="total-row grand">
+                            <span>Grand Total</span>
+                            <strong>LKR ${grandTotal.toFixed(2)}</strong>
+                        </div>
+                        ${txn.paymentMode === 'cash' ? `
+                            <div class="total-row" style="font-size: 12px; margin-top: 6px; border-top: 1px dotted var(--border-color); padding-top: 6px;">
+                                <span>Cash Tendered</span>
+                                <strong style="color:var(--text-muted);">LKR ${(txn.cashTendered || grandTotal).toFixed(2)}</strong>
+                            </div>
+                            <div class="total-row" style="font-size: 12px;">
+                                <span>Change Returned</span>
+                                <strong style="color:var(--text-muted);">LKR ${changeDue.toFixed(2)}</strong>
+                            </div>
+                        ` : `
+                            <div class="total-row" style="font-size: 12px; margin-top: 6px; border-top: 1px dotted var(--border-color); padding-top: 6px;">
+                                <span>Card Reference</span>
+                                <strong style="color:var(--text-muted);">${txn.refNo || 'CRD-N/A'}</strong>
+                            </div>
+                        `}
+                    </div>
+                </div>
+
+                <div class="receipt-footer">
+                    <div class="footer-note">
+                        🌿 This is an eco-friendly digital e-receipt generated by ApexPOS. No paper was wasted. Save it as PDF or screenshot for your records.
+                    </div>
+                    <button class="btn-action" onclick="window.print()">
+                        <i data-lucide="printer" style="width: 16px; height: 16px;"></i> Print / Save E-Receipt
+                    </button>
+                </div>
+            `;
+
+            // Initialize Lucide Icons on the dynamic elements
+            if (typeof lucide !== "undefined") {
+                lucide.createIcons();
+            }
+        }
+
+        function renderError(title, message) {
+            const container = document.getElementById("main-container");
+            container.innerHTML = `
+                <div class="error-container">
+                    <i data-lucide="alert-triangle"></i>
+                    <h3>${title}</h3>
+                    <p>${message}</p>
+                    <a href="index.html" class="btn-action" style="margin-top: 24px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); box-shadow: none;">
+                        <i data-lucide="home" style="width: 16px; height: 16px;"></i> Go to Dashboard
+                    </a>
+                </div>
+            `;
+            if (typeof lucide !== "undefined") {
+                lucide.createIcons();
+            }
+        }
+    </script>
+</body>
+</html>

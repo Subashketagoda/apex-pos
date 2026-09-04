@@ -1,0 +1,38 @@
+{
+  "auth": {
+    "providers": {
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "ApexPOS",
+        "supportEmail": "69studiobysubhash@gmail.com"
+      }
+    }
+  },
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "**/dist/**",
+      "skills-lock.json",
+      ".agents/**",
+      "main.js",
+      "customer.html",
+      "download_libs.js",
+      "package.json",
+      "package-lock.json",
+      "ApexPOS-debug.apk",
+      "android/**",
+      "jdk/**",
+      "www/**",
+      "build_www.js",
+      "download_libs.js",
+      "test_compat.js"
+    ]
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "database": "default"
+  }
+}

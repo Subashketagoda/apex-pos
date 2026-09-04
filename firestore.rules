@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Products: readable and writable by any terminal
+    match /products/{productId} {
+      allow read, write: if true;
+    }
+
+    // Transactions: readable and writable by any terminal
+    match /transactions/{txnId} {
+      allow read, write: if true;
+    }
+
+    // Z-Reports: readable and writable by any terminal
+    match /zReports/{reportId} {
+      allow read, write: if true;
+    }
+
+    // Settings/Config: readable and writable by any terminal
+    match /config/{docId} {
+      allow read, write: if true;
+    }
+
+    // Held Carts: readable and writable by any terminal
+    match /heldCarts/{cartId} {
+      allow read, write: if true;
+    }
+  }
+}

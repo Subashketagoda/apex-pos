@@ -1,0 +1,30 @@
+# Node
+node_modules/
+npm-debug.log*
+
+# Build output
+dist/
+www/
+
+# Android / Capacitor build artifacts
+android/app/build/
+android/.gradle/
+android/build/
+
+# Portable JDK (large binary)
+jdk/
+
+# APK files (too large for git)
+*.apk
+*.bin
+
+# Firebase cache
+.firebase/
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
