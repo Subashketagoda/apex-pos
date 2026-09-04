@@ -664,6 +664,53 @@ function renderCategories() {
     });
 }
 
+const CATEGORY_THEMES = {
+    "Burgers": {
+        grad: "linear-gradient(135deg, #f97316 0%, #c2410c 100%)",
+        svg: `<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11h18a8 8 0 0 0-16 0"/><path d="M21 15a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2"/><path d="M3 15h18"/><path d="m5 11 2 2 2-2 2 2 2-2 2 2 2-2 2 2"/></svg>`
+    },
+    "Subs & Sandwiches": {
+        grad: "linear-gradient(135deg, #10b981 0%, #047857 100%)",
+        svg: `<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v1H3v-1z"/><path d="M3 16a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-1H3v1z"/><line x1="3" y1="12" x2="21" y2="12"/><circle cx="8" cy="10" r="0.6" fill="#fff"/><circle cx="12" cy="9.5" r="0.6" fill="#fff"/><circle cx="16" cy="10" r="0.6" fill="#fff"/></svg>`
+    },
+    "Short Eats": {
+        grad: "linear-gradient(135deg, #f43f5e 0%, #be123c 100%)",
+        svg: `<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 7-4 13H8L4 9l8-7z"/><path d="M8 9l4 4 4-4"/><path d="M12 13v9"/></svg>`
+    },
+    "Rice & Noodles": {
+        grad: "linear-gradient(135deg, #d97706 0%, #92400e 100%)",
+        svg: `<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11c0 4.97 4.03 9 9 9s9-4.03 9-9H3z"/><path d="M7 21h10"/><path d="M8 4c0 2-1 3-1 4"/><path d="M12 3c0 2-1 3-1 5"/><path d="M16 4c0 2-1 3-1 4"/><line x1="20" y1="3" x2="16" y2="11"/></svg>`
+    },
+    "Beverages": {
+        grad: "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
+        svg: `<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 21h10l1-14H6L7 21z"/><path d="M5 7h14"/><line x1="12" y1="2" x2="15" y2="7"/><path d="M9 12h6"/></svg>`
+    },
+    "Chocolates & Snacks": {
+        grad: "linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)",
+        svg: `<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="4" y1="9.33" x2="20" y2="9.33"/><line x1="4" y1="14.67" x2="20" y2="14.67"/><line x1="12" y1="4" x2="12" y2="20"/></svg>`
+    },
+    "Chips": {
+        grad: "linear-gradient(135deg, #f59e0b 0%, #b45309 100%)",
+        svg: `<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 21h10l2-13H5l2 13z"/><path d="M9 8V4"/><path d="M12 8V2"/><path d="M15 8V4"/><path d="M7 8V5"/></svg>`
+    },
+    "Groceries": {
+        grad: "linear-gradient(135deg, #10b981 0%, #047857 100%)",
+        svg: `<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>`
+    },
+    "Bakery": {
+        grad: "linear-gradient(135deg, #ea580c 0%, #9a3412 100%)",
+        svg: `<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 7-4 13H8L4 9l8-7z"/><path d="M8 9l4 4 4-4"/></svg>`
+    }
+};
+
+function getCategoryTheme(cat) {
+    if (!cat) return { grad: "linear-gradient(135deg, #6366f1 0%, #4338ca 100%)", svg: SVG_PKG };
+    if (CATEGORY_THEMES[cat]) return CATEGORY_THEMES[cat];
+    const foundKey = Object.keys(CATEGORY_THEMES).find(k => k.toLowerCase() === cat.trim().toLowerCase());
+    if (foundKey) return CATEGORY_THEMES[foundKey];
+    return { grad: "linear-gradient(135deg, #6366f1 0%, #4338ca 100%)", svg: SVG_PKG };
+}
+
 function renderProductsGrid() {
     const container = document.getElementById("products-grid-container");
     
@@ -692,28 +739,22 @@ function renderProductsGrid() {
         const card = document.createElement("div");
         card.className = `product-card`;
         
-        // Color representations derived from category strings
-        const colors = {
-            "Beverages": "linear-gradient(135deg, #3b82f6, #1d4ed8)",
-            "Groceries": "linear-gradient(135deg, #10b981, #047857)",
-            "Snacks": "linear-gradient(135deg, #f59e0b, #b45309)",
-            "Dairy": "linear-gradient(135deg, #ec4899, #be185d)",
-            "Bakery": "linear-gradient(135deg, #8b5cf6, #6d28d9)",
-            "Fresh Produce": "linear-gradient(135deg, #84cc16, #4d7c0f)"
-        };
-        const grad = colors[p.category] || "linear-gradient(135deg, #64748b, #334155)";
+        const theme = getCategoryTheme(p.category);
 
         card.innerHTML = `
-            <div class="product-image-placeholder" style="background: ${grad}; position: relative;">
+            <div class="product-image-placeholder" style="background: ${theme.grad}; position: relative;">
                 <span class="product-category-tag">${p.category}</span>
                 <span class="product-code-tag">${p.code}</span>
-                ${SVG_PKG}
+                ${theme.svg}
             </div>
             <div class="product-details">
                 <span class="product-title" title="${p.name}">${p.name}</span>
                 <div class="product-price-row">
-                    <span class="product-currency">LKR</span>
-                    <span class="product-price">${p.price.toFixed(2)}</span>
+                    <div class="product-price-wrap">
+                        <span class="product-currency">LKR</span>
+                        <span class="product-price">${p.price.toFixed(2)}</span>
+                    </div>
+                    <div class="product-add-badge" title="Add to Order">+</div>
                 </div>
             </div>
         `;
