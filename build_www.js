@@ -17,7 +17,9 @@ const filesToCopy = [
     'app.js',
     'db.js',
     'style.css',
-    'firebase-config.js'
+    'firebase-config.js',
+    'sw.js',
+    'manifest.json'
 ];
 
 // Copy files

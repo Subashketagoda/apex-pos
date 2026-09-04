@@ -2,6 +2,21 @@
    ApexPOS - Core Application Logic & State Controller
    ========================================================================== */
 
+// Global Electron IPC Bridge detection (safe top-level declaration)
+let isElectron = false;
+let ipcRenderer = null;
+try {
+    if (typeof require !== 'undefined') {
+        const electron = require('electron');
+        if (electron && electron.ipcRenderer) {
+            isElectron = true;
+            ipcRenderer = electron.ipcRenderer;
+        }
+    }
+} catch (e) {
+    // Non-electron runtime
+}
+
 // Custom alert system to override the browser default alert popup
 window.alert = function(message, callback) {
     let overlay = document.getElementById("custom-alert-overlay");
@@ -556,6 +571,18 @@ function setupRouting() {
             }
         });
     });
+
+    const lockBtn = document.getElementById("btn-lock-terminal");
+    if (lockBtn) {
+        lockBtn.addEventListener("click", logoutUser);
+    }
+}
+
+function logoutUser() {
+    if (confirm("Are you sure you want to lock the terminal and log out?")) {
+        sessionStorage.removeItem("apexpos_login_role");
+        window.location.replace("login.html");
+    }
 }
 
 function triggerAdminTabRefresh() {
@@ -663,19 +690,35 @@ function renderProductsGrid() {
         };
         const grad = colors[p.category] || "linear-gradient(135deg, #64748b, #334155)";
 
+        const currentStock = p.stock !== undefined ? p.stock : 50;
+        const isOutOfStock = currentStock <= 0;
+        const stockBadge = isOutOfStock
+            ? `<span class="product-stock-pill out-of-stock">Out of Stock</span>`
+            : (currentStock <= (p.alertLevel || 10)
+                ? `<span class="product-stock-pill low-stock">Low: ${currentStock}</span>`
+                : `<span class="product-stock-pill in-stock">${currentStock} in stock</span>`);
+
         card.innerHTML = `
-            <div class="product-image-placeholder" style="background: ${grad}">
+            <div class="product-image-placeholder" style="background: ${grad}; position: relative;">
                 <span class="product-category-tag">${p.category}</span>
                 <span class="product-code-tag">${p.code}</span>
+                ${stockBadge}
                 ${SVG_PKG}
             </div>
-            <div class="product-details" style="padding-bottom: 12px;">
+            <div class="product-details">
                 <span class="product-title" title="${p.name}">${p.name}</span>
-                <span class="product-price">LKR ${p.price.toFixed(2)}</span>
+                <div class="product-price-row">
+                    <span class="product-currency">LKR</span>
+                    <span class="product-price">${p.price.toFixed(2)}</span>
+                </div>
             </div>
         `;
 
         card.addEventListener("click", () => {
+            if (isOutOfStock) {
+                if (typeof showToast === "function") showToast(`⚠️ "${p.name}" is currently out of stock!`);
+                return;
+            }
             addToCart(p.code);
         });
 
@@ -1525,6 +1568,20 @@ function finalizeSaleCheckout() {
     transactions.push(newTxn);
     db.saveTransaction(newTxn);
 
+    // 2. Deduct inventory stock for sold items & sync with database
+    let stockUpdated = false;
+    cart.forEach(item => {
+        const prod = products.find(p => p.code === item.product.code);
+        if (prod) {
+            const currentStock = prod.stock !== undefined ? prod.stock : 50;
+            prod.stock = Math.max(0, currentStock - item.quantity);
+            stockUpdated = true;
+        }
+    });
+    if (stockUpdated) {
+        db.saveProducts(products);
+    }
+
     // 3. Clear Active checkout cart state
     cart = [];
     cartDiscount.value = 0;
@@ -1863,6 +1920,10 @@ function initPaymentMethodsChart() {
             cashTotal += t.grandTotal;
         } else if (t.paymentMode === "card") {
             cardTotal += t.grandTotal;
+        } else if (t.paymentMode === "split") {
+            const cashPart = t.cashTendered || 0;
+            cashTotal += cashPart;
+            cardTotal += Math.max(0, t.grandTotal - cashPart);
         }
     });
 
@@ -1988,7 +2049,7 @@ function renderInventoryTable() {
             <td>${p.category}</td>
             <td>LKR ${p.price.toFixed(2)}</td>
             <td>LKR ${(p.cost || 0).toFixed(2)}</td>
-            <td><span class="badge-status success">Active</span></td>
+            <td><span class="badge-status ${p.stock !== undefined && p.stock <= 0 ? 'danger' : (p.stock !== undefined && p.stock <= (p.alertLevel || 10) ? 'warning' : 'success')}">${p.stock !== undefined ? p.stock : 50} in stock</span></td>
             <td class="action-buttons-cell">
                 <button class="btn-table-action edit" onclick="openEditProductModal(${originalIndex})" title="Edit Details">
                     <i data-lucide="edit-3"></i>
@@ -2103,10 +2164,11 @@ window.deleteProduct = function(index) {
 // ==========================================================================
 
 function renderZReportsTab() {
-    // 1. Calculate running stats of active unclosed register
-    const unclosedCount = transactions.length;
+    // 1. Calculate running stats of active unclosed register (filter out archived closed shift txns)
+    const activeTxns = transactions.filter(t => !t.closed);
+    const unclosedCount = activeTxns.length;
     
-    const unclosedTotals = transactions.reduce((acc, t) => {
+    const unclosedTotals = activeTxns.reduce((acc, t) => {
         acc.sales += t.grandTotal;
         acc.discount += t.discount;
         return acc;
@@ -2299,7 +2361,8 @@ function setupReportsHandlers() {
     const btnZReport = document.getElementById("btn-trigger-zreport");
     if (btnZReport) {
         btnZReport.addEventListener("click", () => {
-            if (transactions.length === 0) {
+            const activeShiftTxns = transactions.filter(t => !t.closed);
+            if (activeShiftTxns.length === 0) {
                 alert("No active transactions recorded in the current shift. Cannot perform Z-Report closure.");
                 return;
             }
@@ -3227,21 +3290,28 @@ function exportSelectedReportToCSV() {
 
 
 async function performZReportShiftClosure() {
-    // 1. Calculate shift aggregates
+    // 1. Calculate shift aggregates using active (unclosed) transactions
     const currentZId = "ZREP-" + String(zReports.length + 1).padStart(4, '0');
     const timestamp = new Date().toISOString();
     
-    const count = transactions.length;
+    const activeTxns = transactions.filter(t => !t.closed);
+    const count = activeTxns.length;
     let salesVal = 0;
     let discountVal = 0;
     let cashVal = 0;
     let cardVal = 0;
 
-    transactions.forEach(t => {
+    activeTxns.forEach(t => {
         salesVal += t.grandTotal;
         discountVal += t.discount;
         if (t.paymentMode === "cash") {
             cashVal += t.grandTotal;
+        } else if (t.paymentMode === "card") {
+            cardVal += t.grandTotal;
+        } else if (t.paymentMode === "split") {
+            const cashPart = t.cashTendered || 0;
+            cashVal += cashPart;
+            cardVal += Math.max(0, t.grandTotal - cashPart);
         } else {
             cardVal += t.grandTotal;
         }
@@ -3252,20 +3322,28 @@ async function performZReportShiftClosure() {
         timestamp,
         closedBy: "Admin Cashier",
         transactionsCount: count,
+        transactionCount: count,
         totalsSales: salesVal,
+        grossRevenue: salesVal,
         totalDiscount: discountVal,
+        totalDiscounts: discountVal,
         cashShare: cashVal,
         cardShare: cardVal,
-        rawTransactionsList: [...transactions] // Archive full snapshot of shift sales
+        rawTransactionsList: [...activeTxns] // Archive full snapshot of shift sales
     };
 
     // 2. Append Z-Report to logs & save to cloud
     zReports.push(newZReport);
     await db.saveZReport(newZReport);
 
-    // 3. WIPE ACTIVE TRANSACTIONS (this closes the register session!)
-    transactions = [];
-    await db.clearTransactions();
+    // 3. Mark active shift transactions as closed (does NOT delete from Firestore, keeping customer e-receipts working!)
+    const closedTxnIds = [];
+    activeTxns.forEach(t => {
+        t.closed = true;
+        t.zReportId = currentZId;
+        closedTxnIds.push(t.id);
+    });
+    await db.closeShiftTransactions(currentZId, closedTxnIds);
 
     // 4. Save active cart state
     db.saveActiveCart(cart);
@@ -3719,8 +3797,7 @@ window.discardHeldOrder = function(id) {
 // Desktop App Integration & Advanced Features
 // ==========================================================================
 
-const isElectron = typeof require !== 'undefined' && typeof require('electron') !== 'undefined';
-const ipcRenderer = isElectron ? require('electron').ipcRenderer : null;
+// Note: isElectron and ipcRenderer are declared at top of app.js for safe global access
 
 // Network connectivity status updater
 function updateNetworkStatus() {
@@ -3895,7 +3972,10 @@ function exportZReportsToCSV() {
     let csv = "\uFEFFZ-Report ID,Closure Date,Closed By,Gross Revenue (LKR),Total Discounts (LKR),Invoice Count\n";
     zReports.forEach(z => {
         const dt = new Date(z.timestamp).toLocaleString();
-        csv += `"${z.id}","${dt}","${z.closedBy}","${z.grossRevenue.toFixed(2)}","${z.totalDiscounts.toFixed(2)}","${z.transactionCount}"\n`;
+        const gross = z.totalsSales !== undefined ? z.totalsSales : (z.grossRevenue || 0);
+        const discount = z.totalDiscount !== undefined ? z.totalDiscount : (z.totalDiscounts || 0);
+        const count = z.transactionsCount !== undefined ? z.transactionsCount : (z.transactionCount || 0);
+        csv += `"${z.id}","${dt}","${z.closedBy}","${gross.toFixed(2)}","${discount.toFixed(2)}","${count}"\n`;
     });
     downloadCSV(csv, "zreports_history.csv");
 }

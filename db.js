@@ -127,30 +127,24 @@ const db = {
     // SAVE — Write data to Firestore (or localStorage fallback)
     // ====================================================================
 
-    /** Save entire products array to Firestore */
+    /** Save entire products array to Firestore (chunked in batches of 200) */
     async saveProducts(productsArr) {
+        localStorage.setItem("apex_pos_products", JSON.stringify(productsArr));
         if (!this.isCloud()) {
-            localStorage.setItem("apex_pos_products", JSON.stringify(productsArr));
             return;
         }
         try {
-            const batch = firestoreDb.batch();
-            
-            // Get all existing product docs and delete them
-            const existing = await firestoreDb.collection('products').get();
-            existing.docs.forEach(doc => batch.delete(doc.ref));
-            
-            // Write all current products
-            productsArr.forEach(p => {
-                const ref = firestoreDb.collection('products').doc(p.code);
-                batch.set(ref, p);
-            });
-            
-            await batch.commit();
+            for (let i = 0; i < productsArr.length; i += 200) {
+                const chunk = productsArr.slice(i, i + 200);
+                const batch = firestoreDb.batch();
+                chunk.forEach(p => {
+                    const ref = firestoreDb.collection('products').doc(p.code);
+                    batch.set(ref, p);
+                });
+                await batch.commit();
+            }
         } catch (error) {
             console.error('[ApexPOS] Failed to save products to cloud:', error);
-            // Fallback save
-            localStorage.setItem("apex_pos_products", JSON.stringify(productsArr));
         }
     },
 
@@ -222,7 +216,28 @@ const db = {
         }
     },
 
-    /** Clear all transactions (used after Z-Report closure) */
+    /** Mark shift transactions as closed in Firestore without deleting docs (keeps e-receipts working!) */
+    async closeShiftTransactions(zReportId, txnIds) {
+        localStorage.setItem("apex_pos_transactions", JSON.stringify(transactions));
+        if (!this.isCloud() || !Array.isArray(txnIds) || txnIds.length === 0) {
+            return;
+        }
+        try {
+            for (let i = 0; i < txnIds.length; i += 200) {
+                const chunk = txnIds.slice(i, i + 200);
+                const batch = firestoreDb.batch();
+                chunk.forEach(id => {
+                    const ref = firestoreDb.collection('transactions').doc(id);
+                    batch.update(ref, { closed: true, zReportId: zReportId });
+                });
+                await batch.commit();
+            }
+        } catch (error) {
+            console.error('[ApexPOS] Failed to mark transactions closed in cloud:', error);
+        }
+    },
+
+    /** Clear all transactions (factory reset only) */
     async clearTransactions() {
         if (!this.isCloud()) {
             localStorage.setItem("apex_pos_transactions", JSON.stringify([]));
