@@ -703,19 +703,10 @@ function renderProductsGrid() {
         };
         const grad = colors[p.category] || "linear-gradient(135deg, #64748b, #334155)";
 
-        const currentStock = p.stock !== undefined ? p.stock : 50;
-        const isOutOfStock = currentStock <= 0;
-        const stockBadge = isOutOfStock
-            ? `<span class="product-stock-pill out-of-stock">Out of Stock</span>`
-            : (currentStock <= (p.alertLevel || 10)
-                ? `<span class="product-stock-pill low-stock">Low: ${currentStock}</span>`
-                : `<span class="product-stock-pill in-stock">${currentStock} in stock</span>`);
-
         card.innerHTML = `
             <div class="product-image-placeholder" style="background: ${grad}; position: relative;">
                 <span class="product-category-tag">${p.category}</span>
                 <span class="product-code-tag">${p.code}</span>
-                ${stockBadge}
                 ${SVG_PKG}
             </div>
             <div class="product-details">
@@ -728,10 +719,6 @@ function renderProductsGrid() {
         `;
 
         card.addEventListener("click", () => {
-            if (isOutOfStock) {
-                if (typeof showToast === "function") showToast(`⚠️ "${p.name}" is currently out of stock!`);
-                return;
-            }
             addToCart(p.code);
         });
 
@@ -1615,21 +1602,7 @@ function finalizeSaleCheckout() {
         }
     }
 
-    // 2. Deduct inventory stock for sold items & sync with database
-    let stockUpdated = false;
-    cart.forEach(item => {
-        const prod = products.find(p => p.code === item.product.code);
-        if (prod) {
-            const currentStock = prod.stock !== undefined ? prod.stock : 50;
-            prod.stock = Math.max(0, currentStock - item.quantity);
-            stockUpdated = true;
-        }
-    });
-    if (stockUpdated) {
-        db.saveProducts(products);
-    }
-
-    // 3. Clear Active checkout cart state
+    // 2. Clear Active checkout cart state
     cart = [];
     cartDiscount.value = 0;
     orderNote = "";
