@@ -1898,6 +1898,12 @@ button, input, select {
     border: 1.5px solid var(--border-color);
     border-radius: var(--radius-sm);
     padding-left: 10px;
+    cursor: text;
+    transition: var(--transition-fast);
+}
+.tendered-wrap:focus-within {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
 }
 .tendered-wrap input {
     font-size: 20px;
@@ -1906,6 +1912,10 @@ button, input, select {
     color: #34d399;
     text-align: right;
     width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    cursor: text;
 }
 .quick-cash-grid {
     display: grid;

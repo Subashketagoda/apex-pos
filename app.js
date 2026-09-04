@@ -1391,6 +1391,15 @@ function openCheckoutModal() {
     
     document.getElementById("checkout-modal").classList.add("active");
     
+    // Auto-focus amount-tendered input for physical keyboard typing
+    setTimeout(() => {
+        const amtInput = document.getElementById("amount-tendered");
+        if (amtInput && currentPaymentMode === "cash") {
+            amtInput.focus();
+            amtInput.select();
+        }
+    }, 100);
+    
     // Sync customer display screen
     if (typeof syncCustomerDisplay === "function") {
         syncCustomerDisplay("checkout");
@@ -1418,6 +1427,13 @@ function setupCheckoutModalHandlers() {
                 numpad.style.display = "flex";
                 cardFields.style.display = "none";
                 splitFields.style.display = "none";
+                setTimeout(() => {
+                    const amtInput = document.getElementById("amount-tendered");
+                    if (amtInput) {
+                        amtInput.focus();
+                        amtInput.select();
+                    }
+                }, 50);
             } else if (mode === "split") {
                 cashFields.style.display = "none";
                 numpad.style.display = "none";
@@ -1428,7 +1444,10 @@ function setupCheckoutModalHandlers() {
                 const splitCardBal = document.getElementById("split-card-balance");
                 if (splitCardBal) splitCardBal.textContent = `LKR ${totals.grandTotal.toFixed(2)}`;
                 const splitCashInput = document.getElementById("split-cash-amount");
-                if (splitCashInput) splitCashInput.value = "";
+                if (splitCashInput) {
+                    splitCashInput.value = "";
+                    setTimeout(() => splitCashInput.focus(), 50);
+                }
             } else {
                 cashFields.style.display = "none";
                 numpad.style.display = "flex";
@@ -1440,6 +1459,8 @@ function setupCheckoutModalHandlers() {
                 
                 const viewManual = document.getElementById("card-manual-keyin-view");
                 if (viewManual) viewManual.style.display = "block";
+                const last4 = document.getElementById("card-last4");
+                if (last4) setTimeout(() => last4.focus(), 50);
             }
         });
     });
@@ -1452,6 +1473,65 @@ function setupCheckoutModalHandlers() {
             btn.classList.add("active");
             selectedCardBrand = btn.getAttribute("data-brand");
         });
+    });
+
+    // Allow keyboard typing directly on the amount-tendered field
+    const amountTenderedInput = document.getElementById("amount-tendered");
+    if (amountTenderedInput) {
+        amountTenderedInput.addEventListener("input", () => {
+            // Strip out non-numeric characters except single dot
+            let val = amountTenderedInput.value.replace(/[^0-9.]/g, "");
+            const parts = val.split(".");
+            if (parts.length > 2) {
+                val = parts[0] + "." + parts.slice(1).join("");
+            }
+            cashTendered = val;
+            updatePaymentNumpadDisplay(false);
+        });
+
+        amountTenderedInput.addEventListener("focus", () => {
+            amountTenderedInput.select();
+        });
+
+        amountTenderedInput.addEventListener("blur", () => {
+            if (cashTendered) {
+                const f = parseFloat(cashTendered);
+                if (!isNaN(f) && f > 0) {
+                    amountTenderedInput.value = f.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                }
+            } else {
+                amountTenderedInput.value = "";
+            }
+        });
+
+        amountTenderedInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                finalizeSaleCheckout();
+            }
+        });
+    }
+
+    // Global keyboard listener inside checkout modal so typing numbers immediately focuses amount-tendered
+    document.addEventListener("keydown", (e) => {
+        const checkoutModal = document.getElementById("checkout-modal");
+        if (!checkoutModal || !checkoutModal.classList.contains("active")) return;
+        if (currentPaymentMode !== "cash") return;
+        
+        // If typing in another active input, don't hijack
+        const activeId = document.activeElement ? document.activeElement.id : "";
+        if (activeId === "checkout-customer-phone" || activeId === "split-cash-amount" || activeId === "split-card-last4" || activeId === "card-last4") {
+            return;
+        }
+
+        const amtInput = document.getElementById("amount-tendered");
+        if (!amtInput) return;
+
+        if (document.activeElement !== amtInput) {
+            if ((e.key >= "0" && e.key <= "9") || e.key === "." || e.key === "Backspace") {
+                amtInput.focus();
+            }
+        }
     });
 
     // Touch Numpad input events
@@ -1472,10 +1552,14 @@ function setupCheckoutModalHandlers() {
             } else {
                 if (val === "C") {
                     cashTendered = "";
+                } else if (val === ".") {
+                    if (!cashTendered.includes(".")) {
+                        cashTendered = cashTendered ? cashTendered + "." : "0.";
+                    }
                 } else {
                     cashTendered += val;
                 }
-                updatePaymentNumpadDisplay();
+                updatePaymentNumpadDisplay(true);
             }
         });
     });
@@ -1485,12 +1569,9 @@ function setupCheckoutModalHandlers() {
     quickCashButtons.forEach(btn => {
         btn.addEventListener("click", () => {
             const amt = parseFloat(btn.getAttribute("data-cash"));
-            const totals = calculateCartTotals();
-            
-            // Add or set cash tendered
             const curVal = parseFloat(cashTendered) || 0;
             cashTendered = String(curVal + amt);
-            updatePaymentNumpadDisplay();
+            updatePaymentNumpadDisplay(true);
         });
     });
 
@@ -1504,29 +1585,48 @@ function setupCheckoutModalHandlers() {
             const splitCardBal = document.getElementById("split-card-balance");
             if (splitCardBal) splitCardBal.textContent = `LKR ${cardPart.toFixed(2)}`;
         });
+        splitCashInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                finalizeSaleCheckout();
+            }
+        });
     }
 
     // Confirm Payment Finalize Button
     document.getElementById("btn-confirm-payment").addEventListener("click", finalizeSaleCheckout);
 }
 
-function updatePaymentNumpadDisplay() {
+function updatePaymentNumpadDisplay(syncInput = true) {
     const inputEl = document.getElementById("amount-tendered");
     const changeEl = document.getElementById("pay-change-due");
     const changeCard = document.getElementById("change-display-card");
+    const totals = calculateCartTotals();
+    const currentTotal = totals.grandTotal;
     
     if (!cashTendered) {
-        inputEl.value = "0.00";
+        if (syncInput) {
+            inputEl.value = "";
+        }
         changeEl.textContent = "LKR 0.00";
         changeCard.className = "change-due-badge";
         return;
     }
     
-    // Parse value (e.g. 5000)
     const floatVal = parseFloat(cashTendered);
-    inputEl.value = floatVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (isNaN(floatVal)) {
+        changeEl.textContent = "LKR 0.00";
+        changeCard.className = "change-due-badge";
+        return;
+    }
     
-    const change = floatVal - currentCheckoutTotal;
+    if (syncInput && document.activeElement !== inputEl) {
+        inputEl.value = floatVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    } else if (syncInput) {
+        inputEl.value = cashTendered;
+    }
+    
+    const change = floatVal - currentTotal;
     changeEl.textContent = `LKR ${Math.max(0, change).toFixed(2)}`;
     
     if (change < 0) {
@@ -1540,7 +1640,9 @@ function updatePaymentNumpadDisplay() {
 // Checkout Finalizer - Records transactions, prints receipt, and updates warehouse inventories
 function finalizeSaleCheckout() {
     const totals = calculateCartTotals();
-    const parsedTendered = parseFloat(cashTendered) || 0;
+    const amtInput = document.getElementById("amount-tendered");
+    const rawInputVal = amtInput ? amtInput.value.replace(/[^0-9.]/g, "") : "";
+    const parsedTendered = parseFloat(cashTendered || rawInputVal) || 0;
     
     if (currentPaymentMode === "cash" && parsedTendered < totals.grandTotal) {
         alert("Cash amount tendered is less than invoice total due. Please enter a valid sum.");
