@@ -148,7 +148,10 @@ const db = {
         }
     },
 
-    /** Save a single product (for add/edit) */
+    /** Alias for saveProducts to prevent runtime crashes */
+    async saveAllProducts(productsArr) {
+        return this.saveProducts(productsArr);
+    },
     async saveSingleProduct(product) {
         if (!this.isCloud()) {
             localStorage.setItem("apex_pos_products", JSON.stringify(products));
@@ -189,7 +192,19 @@ const db = {
         }
     },
 
-    /** Save all transactions (used for bulk operations like mock data inject) */
+    /** Delete a single transaction from Firestore and localStorage */
+    async deleteTransaction(txnId) {
+        transactions = transactions.filter(t => t.id !== txnId);
+        localStorage.setItem("apex_pos_transactions", JSON.stringify(transactions));
+        if (!this.isCloud()) {
+            return;
+        }
+        try {
+            await firestoreDb.collection('transactions').doc(txnId).delete();
+        } catch (error) {
+            console.error('[ApexPOS] Failed to delete transaction from cloud:', error);
+        }
+    },
     async saveAllTransactions(txnArr) {
         if (!this.isCloud()) {
             localStorage.setItem("apex_pos_transactions", JSON.stringify(txnArr));

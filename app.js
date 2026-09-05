@@ -288,6 +288,16 @@ function waitForLucide(callback) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+    // 0. Session Auth Guard
+    const userRole = sessionStorage.getItem("apexpos_login_role");
+    if (!userRole) {
+        window.location.replace("login.html");
+        return;
+    }
+    if (userRole === "admin") {
+        isAdminAuthenticated = true;
+    }
+
     // Show progress immediately
     animateSplashProgress(30);
     
@@ -1781,13 +1791,21 @@ function finalizeSaleCheckout() {
 }
 
 // ==========================================================================
-// E-Bill SMS Dispatcher — Notify.lk API
+// E-Bill SMS Dispatcher — Notify.lk API & Receipt Link Helper
 // ==========================================================================
+
+function getEBillReceiptUrl(txnId) {
+    const origin = window.location.origin;
+    if (!origin || origin === "null" || origin.startsWith("file:") || (typeof isElectron !== "undefined" && isElectron)) {
+        return `https://apex-pos-studio.web.app/receipt.html?id=${encodeURIComponent(txnId)}`;
+    }
+    return `${origin}/receipt.html?id=${encodeURIComponent(txnId)}`;
+}
 
 async function sendEBillSMS(txn) {
     if (!settings.ebillEnabled) return;   // Feature is disabled
     const method = settings.smsMethod || "gateway";
-    const receiptUrl = `${window.location.origin}/receipt.html?id=${txn.id}`;
+    const receiptUrl = getEBillReceiptUrl(txn.id);
     const smsText = `${settings.companyName || "Apex Retail"}: Receipt #${txn.id} | LKR ${txn.grandTotal.toFixed(2)} | View: ${receiptUrl}`;
 
     let toNumber = txn.customerPhone;
@@ -1865,7 +1883,7 @@ function formatWhatsAppBillMessage(txn) {
         year: 'numeric', month: '2-digit', day: '2-digit',
         hour: '2-digit', minute: '2-digit'
     });
-    const receiptUrl = `${window.location.origin}/receipt.html?id=${txn.id}`;
+    const receiptUrl = getEBillReceiptUrl(txn.id);
 
     let itemsText = "";
     if (Array.isArray(txn.items) && txn.items.length > 0) {
@@ -2690,7 +2708,11 @@ window.voidTransaction = function(txnId) {
                 product.stock = (product.stock || 0) + item.quantity;
             }
         });
-        db.saveAllProducts(products).catch(err => console.error('[ApexPOS] Stock restore error:', err));
+        if (window.db && typeof db.saveProducts === 'function') {
+            db.saveProducts(products).catch(err => console.error('[ApexPOS] Stock restore error:', err));
+        } else {
+            localStorage.setItem("apex_pos_products", JSON.stringify(products));
+        }
     }
 
     // Step 4: Mark as voided (retain record)
@@ -2717,9 +2739,8 @@ window.voidTransaction = function(txnId) {
 // Legacy hard-delete (admin-only, kept for backward compatibility)
 window.deleteTransaction = function(txnId) {
     if (!confirm('Are you sure you want to PERMANENTLY delete this order? This cannot be undone.')) return;
-    transactions = transactions.filter(t => t.id !== txnId);
-    if (window.db) {
-        db.saveAllTransactions(transactions).then(() => {
+    if (window.db && typeof db.deleteTransaction === 'function') {
+        db.deleteTransaction(txnId).then(() => {
             renderTransactionsTable();
             updateDashboardMetrics();
             if (typeof showToast === 'function') showToast('Order permanently deleted.');
@@ -2728,6 +2749,7 @@ window.deleteTransaction = function(txnId) {
             alert('Error deleting order.');
         });
     } else {
+        transactions = transactions.filter(t => t.id !== txnId);
         localStorage.setItem('apex_pos_transactions', JSON.stringify(transactions));
         renderTransactionsTable();
         updateDashboardMetrics();
@@ -2772,7 +2794,7 @@ window.editTransaction = function(txnId) {
 };
 
 window.copyTransactionEBillLink = function(txnId) {
-    const receiptUrl = `${window.location.origin}/receipt.html?id=${txnId}`;
+    const receiptUrl = getEBillReceiptUrl(txnId);
     navigator.clipboard.writeText(receiptUrl).then(() => {
         alert("E-Receipt URL copied to clipboard!");
     }).catch(err => {
@@ -4517,10 +4539,12 @@ function exportProductsToCSV() {
 }
 
 function exportTransactionsToCSV() {
-    let csv = "\uFEFFTransaction ID,Date & Time,Payment Mode,Subtotal (LKR),Discounts (LKR),Grand Total (LKR),Customer Phone,Cash Tendered,Change Due\n";
+    let csv = "\uFEFFTransaction ID,Date & Time,Status,Void Reason,Payment Mode,Subtotal (LKR),Discounts (LKR),Grand Total (LKR),Customer Phone,Cash Tendered,Change Due\n";
     transactions.forEach(t => {
         const dt = new Date(t.timestamp).toLocaleString();
-        csv += `"${t.id}","${dt}","${t.paymentMode}","${t.subtotal.toFixed(2)}","${t.discount.toFixed(2)}","${t.grandTotal.toFixed(2)}","${t.customerPhone || ''}","${t.cashTendered || t.grandTotal}","${t.changeDue || 0}"\n`;
+        const status = t.status === 'voided' ? 'VOIDED' : 'COMPLETED';
+        const voidReason = (t.voidReason || '').replace(/"/g, '""');
+        csv += `"${t.id}","${dt}","${status}","${voidReason}","${t.paymentMode}","${t.subtotal.toFixed(2)}","${t.discount.toFixed(2)}","${t.grandTotal.toFixed(2)}","${t.customerPhone || ''}","${t.cashTendered || t.grandTotal}","${t.changeDue || 0}"\n`;
     });
     downloadCSV(csv, "transactions_history.csv");
 }

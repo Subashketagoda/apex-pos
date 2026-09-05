@@ -15,7 +15,7 @@
     <script src="lib/firebase-app-compat.js" defer></script>
     <script src="lib/firebase-auth-compat.js" defer></script>
     <script src="lib/firebase-firestore-compat.js" defer></script>
-    <script src="firebase-config.js?v=24" defer></script>
+    <script src="firebase-config.js?v=33" defer></script>
 
     <style>
         /* ============================================================
@@ -1192,6 +1192,27 @@
             return s.cashierPin || '123456';
         } catch(e) { return '123456'; }
     }
+
+    // Sync settings from Firestore if available so fresh devices receive updated Cashier PIN
+    function syncCloudSettings() {
+        if (typeof isFirebaseConfigured !== 'undefined' && isFirebaseConfigured && typeof firestoreDb !== 'undefined' && firestoreDb) {
+            firestoreDb.collection('config').doc('settings').get().then(doc => {
+                if (doc.exists) {
+                    const cloudSettings = doc.data();
+                    const localSettings = JSON.parse(localStorage.getItem('apex_pos_settings') || '{}');
+                    const merged = { ...localSettings, ...cloudSettings };
+                    localStorage.setItem('apex_pos_settings', JSON.stringify(merged));
+                    const hintEl = document.getElementById('hint-cashier-pin');
+                    if (hintEl) hintEl.textContent = getCashierPin();
+                    const footerHint = document.getElementById('footer-hint-text');
+                    if (footerHint && isLocalMode) {
+                        footerHint.innerHTML = `Cashier PIN: <strong>${getCashierPin()}</strong> &nbsp;|&nbsp; Admin login via <strong>Local Passcode (Local Server Mode)</strong>`;
+                    }
+                }
+            }).catch(err => console.warn('[ApexPOS Login] Cloud settings fetch fallback:', err));
+        }
+    }
+    window.addEventListener('load', syncCloudSettings);
     const pinDots = document.querySelectorAll('.pin-dot');
     const pinDotsDisplay = document.getElementById('pin-dots-display');
     // Update hint to reflect actual PIN
