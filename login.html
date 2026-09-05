@@ -6,6 +6,14 @@
     <title>ApexPOS — Secure Login</title>
     <meta name="description" content="Secure login portal for ApexPOS Enterprise Retail Management System">
 
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#10b981">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="ApexPOS">
+    <link rel="icon" type="image/png" sizes="192x192" href="lib/icon-192.png">
+    <link rel="apple-touch-icon" href="lib/icon-192.png">
+
     <!-- ui-ux-pro-max: Plus Jakarta Sans — Enterprise SaaS Mobile (top recommendation) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -787,6 +795,259 @@
         .custom-alert-btn:active {
             transform: scale(0.97);
         }
+
+        /* ==================== CHROMEOS INSTALL CARD & MODAL ==================== */
+        .chromeos-banner {
+            margin-top: 24px;
+            padding: 16px;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(99, 102, 241, 0.12));
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            border-radius: var(--radius-lg);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+        .chromeos-banner::before {
+            content: '';
+            position: absolute;
+            top: 0; right: 0; width: 100px; height: 100px;
+            background: radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .chromeos-badge-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .chromeos-icon-wrap {
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #10b981, #6366f1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+            flex-shrink: 0;
+        }
+        .chromeos-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .chromeos-tag {
+            font-size: 10px;
+            font-weight: 700;
+            color: #10b981;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+        .chromeos-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #fff;
+        }
+        .chromeos-desc {
+            font-size: 12px;
+            color: var(--fg-muted);
+            line-height: 1.5;
+            margin: 0;
+        }
+        .chromeos-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .btn-chromeos-download {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #10b981;
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            padding: 9px 16px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+        .btn-chromeos-download:hover {
+            background: #059669;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+        }
+        .btn-chromeos-guide {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--fg);
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 9px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-chromeos-guide:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .btn-compact-install {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 20px;
+            padding: 7px 16px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-compact-install:hover {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: #10b981;
+            transform: translateY(-1px);
+        }
+        /* Modal for ChromeOS Installation Guide */
+        .chromeos-modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        .chromeos-modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .chromeos-modal-card {
+            background: #111827;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 20px;
+            max-width: 520px;
+            width: 100%;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+            overflow: hidden;
+            transform: scale(0.95);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .chromeos-modal-overlay.active .chromeos-modal-card {
+            transform: scale(1);
+        }
+        .chromeos-modal-header {
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(99, 102, 241, 0.1));
+        }
+        .chromeos-modal-header h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .chromeos-modal-close {
+            background: none;
+            border: none;
+            color: var(--fg-muted);
+            font-size: 24px;
+            line-height: 1;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+            transition: color 0.15s;
+        }
+        .chromeos-modal-close:hover {
+            color: #fff;
+        }
+        .chromeos-modal-body {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .chromeos-step {
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+        }
+        .chromeos-step-num {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #10b981;
+            color: #fff;
+            font-weight: 800;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .chromeos-step-content {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .chromeos-step-content strong {
+            font-size: 13px;
+            color: #fff;
+        }
+        .chromeos-step-content span {
+            font-size: 12px;
+            color: var(--fg-muted);
+            line-height: 1.4;
+        }
+        .chromeos-feature-pills {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 6px;
+        }
+        .chromeos-feature-pill {
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: rgba(99, 102, 241, 0.15);
+            color: #a5b4fc;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            font-weight: 600;
+        }
+        .chromeos-modal-footer {
+            padding: 16px 24px;
+            background: rgba(0, 0, 0, 0.2);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
     </style>
 </head>
 <body>
@@ -858,6 +1119,42 @@
                     <strong>Inventory Master</strong>
                     <span>Stock control, low-stock alerts & Z-Reports</span>
                 </div>
+            </div>
+        </div>
+
+        <!-- ==================== ChromeOS / Chromebook App Install Banner ==================== -->
+        <div class="chromeos-banner">
+            <div class="chromeos-badge-header">
+                <div class="chromeos-icon-wrap">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <circle cx="12" cy="12" r="4"/>
+                        <line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/>
+                        <line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/>
+                        <line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/>
+                        <line x1="14.83" y1="14.83" x2="9.17" y2="14.83"/>
+                    </svg>
+                </div>
+                <div class="chromeos-info">
+                    <span class="chromeos-tag">ChromeOS & Chromebook</span>
+                    <strong class="chromeos-title">Download & Install Desktop App</strong>
+                </div>
+            </div>
+            <p class="chromeos-desc">
+                Install as a native full-screen app on your Chromebook with offline database caching and instant shelf launch.
+            </p>
+            <div class="chromeos-actions">
+                <button type="button" class="btn-chromeos-download" id="btn-login-chromeos-install" onclick="triggerChromeOSInstall()">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    <span>Download / Install App</span>
+                </button>
+                <button type="button" class="btn-chromeos-guide" onclick="openChromeOSModal()">
+                    Installation Guide
+                </button>
             </div>
         </div>
     </div>
@@ -1067,8 +1364,75 @@
                 <p id="footer-hint-text">Cashier PIN: <strong id="hint-cashier-pin">123456</strong> &nbsp;|&nbsp; Admin login via <strong>Firebase Auth</strong></p>
             </div>
         </div>
+
+        <!-- Quick Install Button below login card for mobile/chromebook users -->
+        <div style="text-align: center; margin-top: 16px;">
+            <button type="button" class="btn-compact-install" onclick="triggerChromeOSInstall()">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Download / Install on ChromeOS
+            </button>
+        </div>
     </div>
 
+</div>
+
+<!-- ==================== ChromeOS Installation Guide Modal ==================== -->
+<div class="chromeos-modal-overlay" id="chromeos-modal-overlay">
+    <div class="chromeos-modal-card">
+        <div class="chromeos-modal-header">
+            <h3>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>
+                </svg>
+                Install ApexPOS on ChromeOS / Chromebook
+            </h3>
+            <button type="button" class="chromeos-modal-close" onclick="closeChromeOSModal()">&times;</button>
+        </div>
+        <div class="chromeos-modal-body">
+            <div class="chromeos-step">
+                <div class="chromeos-step-num">1</div>
+                <div class="chromeos-step-content">
+                    <strong>Click the Install Button in Chrome</strong>
+                    <span>Look at the right side of the Chrome address bar and click the <strong>Install (⤓ or ⊕)</strong> icon. Or click Chrome Menu (<strong>⋮</strong>) &rarr; <strong>"Save and share"</strong> &rarr; <strong>"Install ApexPOS"</strong>.</span>
+                </div>
+            </div>
+            <div class="chromeos-step">
+                <div class="chromeos-step-num">2</div>
+                <div class="chromeos-step-content">
+                    <strong>Confirm Installation</strong>
+                    <span>Click <strong>"Install"</strong> in the browser prompt. ChromeOS will configure ApexPOS as a standalone desktop application.</span>
+                </div>
+            </div>
+            <div class="chromeos-step">
+                <div class="chromeos-step-num">3</div>
+                <div class="chromeos-step-content">
+                    <strong>Pin to ChromeOS Shelf</strong>
+                    <span>ApexPOS will launch in its own full-screen window and appear in your Chromebook app launcher. Right-click the app icon on your shelf and select <strong>"Pin"</strong> for 1-click access!</span>
+                </div>
+            </div>
+            <div class="chromeos-feature-pills">
+                <span class="chromeos-feature-pill">⚡ Native Desktop Speed</span>
+                <span class="chromeos-feature-pill">📶 Offline Sync</span>
+                <span class="chromeos-feature-pill">🖨️ Thermal Printer & Scanner Ready</span>
+                <span class="chromeos-feature-pill">🛡️ High Security</span>
+            </div>
+        </div>
+        <div class="chromeos-modal-footer">
+            <button type="button" class="btn-chromeos-guide" onclick="closeChromeOSModal()">Close</button>
+            <button type="button" class="btn-chromeos-download" onclick="triggerChromeOSInstall(true)">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Install Now
+            </button>
+        </div>
+    </div>
 </div>
 
 <div class="page-footer">
@@ -1457,6 +1821,62 @@
     // PIN dots click to focus (mobile UX)
     document.getElementById('pin-dots-display').addEventListener('click', () => {
         document.getElementById('pin-real-input').focus();
+    });
+
+    // ============================================================
+    // ChromeOS PWA Installation & Service Worker Integration
+    // ============================================================
+    let deferredPWAInstall = null;
+
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js').then((reg) => {
+                console.log('[PWA] Service Worker registered on login:', reg.scope);
+            }).catch((err) => {
+                console.warn('[PWA] Service Worker registration failed:', err);
+            });
+        });
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPWAInstall = e;
+        console.log('[PWA] beforeinstallprompt captured on login');
+    });
+
+    window.triggerChromeOSInstall = function(fromModal = false) {
+        if (deferredPWAInstall) {
+            deferredPWAInstall.prompt();
+            deferredPWAInstall.userChoice.then((choiceResult) => {
+                if (choiceResult.outcome === 'accepted') {
+                    if (typeof alert === 'function') alert('🎉 ApexPOS installed successfully on your ChromeOS device!');
+                    closeChromeOSModal();
+                }
+                deferredPWAInstall = null;
+            });
+        } else {
+            // If already in standalone mode or prompt not directly available, open guide modal
+            if (window.matchMedia('(display-mode: standalone)').matches) {
+                if (typeof alert === 'function') alert('ApexPOS is already installed as a desktop application on this device!');
+            } else {
+                openChromeOSModal();
+            }
+        }
+    };
+
+    window.openChromeOSModal = function() {
+        const modal = document.getElementById('chromeos-modal-overlay');
+        if (modal) modal.classList.add('active');
+    };
+
+    window.closeChromeOSModal = function() {
+        const modal = document.getElementById('chromeos-modal-overlay');
+        if (modal) modal.classList.remove('active');
+    };
+
+    window.addEventListener('appinstalled', () => {
+        console.log('[PWA] ApexPOS was installed on ChromeOS/Desktop');
+        closeChromeOSModal();
     });
 </script>
 

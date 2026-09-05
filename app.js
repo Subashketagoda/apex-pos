@@ -4593,31 +4593,69 @@ if ('serviceWorker' in navigator) {
 window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPWAInstallPrompt = e;
+    console.log('[PWA] beforeinstallprompt captured in app');
     const headerBtn = document.getElementById('btn-install-pwa');
     if (headerBtn) {
         headerBtn.style.display = 'inline-flex';
     }
 });
 
-window.triggerPWAInstall = function() {
+window.triggerChromeOSInstall = function(fromModal = false) {
     if (deferredPWAInstallPrompt) {
         deferredPWAInstallPrompt.prompt();
         deferredPWAInstallPrompt.userChoice.then((choiceResult) => {
             if (choiceResult.outcome === 'accepted') {
-                if (typeof showToast === 'function') showToast('🎉 App installed successfully!');
+                if (typeof showToast === 'function') showToast('🎉 ApexPOS installed successfully on your ChromeOS device!');
+                window.closeChromeOSModal();
                 const headerBtn = document.getElementById('btn-install-pwa');
-                if (headerBtn) headerBtn.style.display = 'none';
+                if (headerBtn) {
+                    headerBtn.innerHTML = '<i data-lucide="check-circle" style="width: 14px; height: 14px;"></i><span>App Installed</span>';
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                }
             }
             deferredPWAInstallPrompt = null;
         });
     } else {
-        alert('To install ApexPOS on ChromeOS / Chromebook:\n\n1. Click the Chrome 3-dots menu (⋮) at top right.\n2. Click "Save and share" ➔ "Install ApexPOS".\n\nIt will add ApexPOS as an app icon on your ChromeOS shelf!');
+        if (window.matchMedia('(display-mode: standalone)').matches) {
+            if (typeof showToast === 'function') {
+                showToast('ApexPOS is already installed as a desktop application!');
+            } else {
+                alert('ApexPOS is already installed as a desktop application on this device!');
+            }
+        } else {
+            window.openChromeOSModal();
+        }
     }
 };
+
+window.triggerPWAInstall = window.triggerChromeOSInstall;
+
+window.openChromeOSModal = function() {
+    const modal = document.getElementById('chromeos-install-modal');
+    if (modal) {
+        modal.classList.add('active');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+};
+
+window.closeChromeOSModal = function() {
+    const modal = document.getElementById('chromeos-install-modal');
+    if (modal) modal.classList.remove('active');
+};
+
+window.addEventListener('appinstalled', () => {
+    console.log('[PWA] ApexPOS was installed on ChromeOS/Desktop');
+    if (typeof showToast === 'function') showToast('🎉 ApexPOS successfully installed!');
+    window.closeChromeOSModal();
+});
 
 document.addEventListener('DOMContentLoaded', () => {
     const headerPwaBtn = document.getElementById('btn-install-pwa');
     if (headerPwaBtn) {
-        headerPwaBtn.addEventListener('click', window.triggerPWAInstall);
+        headerPwaBtn.addEventListener('click', window.triggerChromeOSInstall);
+    }
+    const settingsPwaBtn = document.getElementById('btn-install-chromeos-settings');
+    if (settingsPwaBtn) {
+        settingsPwaBtn.addEventListener('click', window.triggerChromeOSInstall);
     }
 });

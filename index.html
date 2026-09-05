@@ -113,8 +113,9 @@
                         <small style="font-size: 9px; opacity: 0.6; text-transform: uppercase;">Cloud Database</small>
                     </div>
                 </div>
-                <button id="btn-install-pwa" class="btn-secondary" style="display: none; padding: 6px 12px; font-size: 11px; gap: 6px; border: 1px solid var(--color-primary); color: var(--color-primary); border-radius: var(--radius-sm); align-items: center;">
-                    <i data-lucide="download" style="width: 14px; height: 14px;"></i> Install App (ChromeOS)
+                <button id="btn-install-pwa" class="btn-chromeos-install" onclick="window.triggerChromeOSInstall()" title="Download & Install on ChromeOS / Chromebook / Desktop">
+                    <i data-lucide="download" style="width: 14px; height: 14px;"></i>
+                    <span>Download App (ChromeOS)</span>
                 </button>
                 <div class="time-widget">
                     <span id="current-time">14:06 PM</span>
@@ -930,20 +931,25 @@
                                             </div>
                                         </div>
                                         <div style="display: flex; flex-direction: column; gap: 10px; align-items: flex-end; flex-shrink: 0;">
-                                            <button id="btn-install-chromeos-settings" onclick="triggerPWAInstall()" style="
-                                                display: inline-flex; align-items: center; gap: 8px;
-                                                padding: 12px 22px; border-radius: 10px; border: none; cursor: pointer;
-                                                background: linear-gradient(135deg, #10b981, #06b6d4);
-                                                color: #fff; font-size: 13px; font-weight: 700; letter-spacing: 0.2px;
-                                                box-shadow: 0 4px 20px rgba(16,185,129,0.4);
-                                                transition: transform 0.2s ease, box-shadow 0.2s ease;
-                                                white-space: nowrap;
-                                            ">
-                                                <i data-lucide="download" style="width: 16px; height: 16px;"></i>
-                                                Install ChromeOS App
-                                            </button>
+                                            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                                <button type="button" class="btn-secondary" onclick="window.openChromeOSModal()" style="height: 42px; display: inline-flex; align-items: center; gap: 6px; border-radius: 10px; font-size: 12px; font-weight: 600;">
+                                                    <i data-lucide="help-circle" style="width: 15px; height: 15px;"></i> Guide
+                                                </button>
+                                                <button id="btn-install-chromeos-settings" onclick="window.triggerChromeOSInstall()" style="
+                                                    display: inline-flex; align-items: center; gap: 8px;
+                                                    padding: 12px 22px; border-radius: 10px; border: none; cursor: pointer;
+                                                    background: linear-gradient(135deg, #10b981, #06b6d4);
+                                                    color: #fff; font-size: 13px; font-weight: 700; letter-spacing: 0.2px;
+                                                    box-shadow: 0 4px 20px rgba(16,185,129,0.4);
+                                                    transition: transform 0.2s ease, box-shadow 0.2s ease;
+                                                    white-space: nowrap;
+                                                ">
+                                                    <i data-lucide="download" style="width: 16px; height: 16px;"></i>
+                                                    Download & Install (ChromeOS)
+                                                </button>
+                                            </div>
                                             <small style="font-size: 10px; color: var(--text-muted); text-align: right; line-height: 1.5;">
-                                                Installs directly to ChromeOS App Launcher
+                                                Installs directly to ChromeOS Shelf & Launcher
                                             </small>
                                         </div>
                                     </div>
@@ -1279,6 +1285,58 @@
                 <div id="held-orders-list">
                     <!-- Populated by JS -->
                 </div>
+            </div>
+        </div>
+    <!-- ChromeOS / Desktop App Installation Modal -->
+    <div class="modal-overlay" id="chromeos-install-modal">
+        <div class="modal-card chromeos-modal-card">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #10b981, #06b6d4); display: flex; align-items: center; justify-content: center; color: #fff;">
+                        <i data-lucide="laptop" style="width: 18px; height: 18px;"></i>
+                    </div>
+                    <div>
+                        <h2 style="font-size: 16px; margin: 0;">Download & Install on ChromeOS</h2>
+                        <small style="color: var(--text-muted); font-size: 11px;">Run ApexPOS as a native desktop application</small>
+                    </div>
+                </div>
+                <button class="close-modal-btn" onclick="window.closeChromeOSModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <div class="chromeos-guide-step">
+                    <div class="chromeos-step-number">1</div>
+                    <div class="chromeos-step-body">
+                        <strong>Click the Install Button in Chrome</strong>
+                        <span>Look at the right side of the Chrome address bar and click the <strong>Install (⤓ or ⊕)</strong> icon. Or click the Chrome menu (<strong>⋮</strong>) &rarr; <strong>"Save and share"</strong> &rarr; <strong>"Install ApexPOS"</strong>.</span>
+                    </div>
+                </div>
+                <div class="chromeos-guide-step">
+                    <div class="chromeos-step-number">2</div>
+                    <div class="chromeos-step-body">
+                        <strong>Confirm App Installation</strong>
+                        <span>Click <strong>"Install"</strong> in the dialog. ChromeOS will register ApexPOS as an independent desktop application on your Chromebook.</span>
+                    </div>
+                </div>
+                <div class="chromeos-guide-step">
+                    <div class="chromeos-step-number">3</div>
+                    <div class="chromeos-step-body">
+                        <strong>Pin to ChromeOS Shelf</strong>
+                        <span>ApexPOS opens in its own window. Right-click the ApexPOS icon on your Chromebook shelf (taskbar) and click <strong>"Pin"</strong> for 1-click launch.</span>
+                    </div>
+                </div>
+                <div class="chromeos-feature-badges">
+                    <span class="chromeos-pill">⚡ Fast Native Speed</span>
+                    <span class="chromeos-pill">📶 Offline Database Sync</span>
+                    <span class="chromeos-pill">🖨️ Thermal Printer Ready</span>
+                    <span class="chromeos-pill">📱 Barcode Scanner Ready</span>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" class="btn-secondary" onclick="window.closeChromeOSModal()">Close</button>
+                <button type="button" class="btn-primary" onclick="window.triggerChromeOSInstall(true)" style="display: inline-flex; align-items: center; gap: 8px;">
+                    <i data-lucide="download"></i>
+                    <span>Install Now</span>
+                </button>
             </div>
         </div>
     </div>

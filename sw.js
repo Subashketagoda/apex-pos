@@ -1,4 +1,4 @@
-const CACHE_NAME = 'apexpos-pwa-v11';
+const CACHE_NAME = 'apexpos-pwa-v12';
 const ASSETS = [
   './',
   './index.html',
@@ -15,7 +15,9 @@ const ASSETS = [
   './lib/firebase-app-compat.js',
   './lib/firebase-auth-compat.js',
   './lib/firebase-firestore-compat.js',
-  './lib/icon.svg'
+  './lib/icon.svg',
+  './lib/icon-192.png',
+  './lib/icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {

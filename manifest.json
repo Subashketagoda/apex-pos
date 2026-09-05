@@ -1,7 +1,20 @@
 {
   "short_name": "ApexPOS",
-  "name": "ApexPOS — Professional Retail Management",
+  "name": "ApexPOS — Enterprise Retail & POS System",
+  "description": "Enterprise Point of Sale, Inventory Management, and Real-time Analytics System for ChromeOS, Chromebook, and Desktop.",
   "icons": [
+    {
+      "src": "lib/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "lib/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    },
     {
       "src": "lib/icon.svg",
       "type": "image/svg+xml",
@@ -10,8 +23,14 @@
     }
   ],
   "start_url": "./index.html",
-  "background_color": "#020203",
+  "scope": "./",
+  "background_color": "#070b14",
   "theme_color": "#10b981",
   "display": "standalone",
-  "orientation": "any"
+  "orientation": "any",
+  "categories": [
+    "business",
+    "finance",
+    "productivity"
+  ]
 }
