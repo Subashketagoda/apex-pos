@@ -25,9 +25,10 @@ const db = {
      * Loads all data from Firestore into the app state variables and sets up real-time sync listeners.
      */
     async init(onSyncUpdate) {
+        // Always load instantly from localStorage first so the UI is immediately interactive with zero latency
+        this._loadFromLocalStorage();
+
         if (!this.isCloud()) {
-            // Fallback: load from localStorage (original behavior)
-            this._loadFromLocalStorage();
             return;
         }
 
@@ -50,8 +51,8 @@ const db = {
                 }
             }, err => console.error('[db] Products sync error:', err));
 
-            // Setup real-time listener for Transactions
-            firestoreDb.collection('transactions').orderBy('timestamp', 'desc').onSnapshot(snap => {
+            // Setup real-time listener for Transactions (limited to latest 100 for high performance)
+            firestoreDb.collection('transactions').orderBy('timestamp', 'desc').limit(100).onSnapshot(snap => {
                 const cloudTxns = snap.docs.map(doc => doc.data());
                 const localTxns = JSON.parse(localStorage.getItem("apex_pos_transactions")) || [];
                 const txnMap = new Map();
@@ -62,8 +63,8 @@ const db = {
                 if (onSyncUpdate) onSyncUpdate('transactions');
             }, err => console.error('[db] Transactions sync error:', err));
 
-            // Setup real-time listener for Z-Reports
-            firestoreDb.collection('zReports').onSnapshot(snap => {
+            // Setup real-time listener for Z-Reports (limited to latest 30 for high performance)
+            firestoreDb.collection('zReports').orderBy('timestamp', 'desc').limit(30).onSnapshot(snap => {
                 const cloudZ = snap.docs.map(doc => doc.data());
                 const localZ = JSON.parse(localStorage.getItem("apex_pos_zreports")) || [];
                 const zMap = new Map();

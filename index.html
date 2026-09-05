@@ -14,7 +14,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="ApexPOS">
-    <link rel="stylesheet" href="style.css?v=33">
+    <link rel="stylesheet" href="style.css?v=37">
     
     <!-- Lucide Icons (deferred for performance) -->
     <script src="lib/lucide.min.js" defer></script>
@@ -23,10 +23,10 @@
     <script src="lib/firebase-app-compat.js" defer></script>
     <script src="lib/firebase-auth-compat.js" defer></script>
     <script src="lib/firebase-firestore-compat.js" defer></script>
-    <script src="firebase-config.js?v=33" defer></script>
-    <script src="db.js?v=33" defer></script>
+    <script src="firebase-config.js?v=37" defer></script>
+    <script src="db.js?v=37" defer></script>
     <script src="lib/chart.umd.js" defer></script>
-    <script src="app.js?v=33" defer></script>
+    <script src="app.js?v=37" defer></script>
 </head>
 <body>
     <!-- ==================== LOADING SPLASH SCREEN ==================== -->
@@ -88,10 +88,10 @@
 
             <!-- View Swapping Navigation Tabs -->
             <nav class="main-nav">
-                <button class="nav-btn active" id="nav-cashier-btn" data-target="cashier-view">
+                <button class="nav-btn active" id="nav-cashier-btn" data-target="cashier-view" onclick="window.openCashierTerminal()">
                     <i data-lucide="shopping-cart"></i> Cashier Terminal
                 </button>
-                <button class="nav-btn" id="nav-admin-btn" data-target="admin-view">
+                <button class="nav-btn" id="nav-admin-btn" data-target="admin-view" onclick="window.openBackOffice()">
                     <i data-lucide="layout-dashboard"></i> Back-Office
                 </button>
             </nav>

@@ -1,14 +1,14 @@
-const CACHE_NAME = 'apexpos-pwa-v12';
+const CACHE_NAME = 'apexpos-pwa-v17';
 const ASSETS = [
   './',
   './index.html',
   './login.html',
   './receipt.html',
   './customer.html',
-  './style.css?v=33',
-  './app.js?v=33',
-  './db.js?v=33',
-  './firebase-config.js?v=33',
+  './style.css?v=37',
+  './app.js?v=37',
+  './db.js?v=37',
+  './firebase-config.js?v=37',
   './manifest.json',
   './lib/lucide.min.js',
   './lib/chart.umd.js',
@@ -48,35 +48,63 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
 
-  // Network-First for dynamic app scripts & views so updates apply immediately
-  const isAppFile = url.pathname.endsWith('.js') || url.pathname.endsWith('.html') || url.pathname.endsWith('.css') || url.pathname === '/';
+  // Do not intercept Firestore, Firebase Auth, or external Google API data requests
+  if (
+    url.hostname.includes('firestore.googleapis.com') ||
+    url.hostname.includes('identitytoolkit.googleapis.com') ||
+    url.hostname.includes('securetoken.googleapis.com') ||
+    url.hostname.includes('apis.google.com')
+  ) {
+    return;
+  }
 
-  if (isAppFile) {
+  // 1. CACHE-FIRST: Static vendor libraries & media assets (fonts, icons, vendor scripts)
+  const isVendorOrMedia = 
+    url.pathname.includes('/lib/') ||
+    url.pathname.endsWith('.png') ||
+    url.pathname.endsWith('.jpg') ||
+    url.pathname.endsWith('.svg') ||
+    url.pathname.endsWith('.ico') ||
+    url.pathname.endsWith('.woff2') ||
+    url.pathname.endsWith('.woff') ||
+    url.hostname.includes('fonts.gstatic.com');
+
+  if (isVendorOrMedia) {
     event.respondWith(
-      fetch(event.request).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200) {
-          const responseClone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
-        }
-        return networkResponse;
-      }).catch(() => {
-        return caches.match(event.request);
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) return cachedResponse;
+        return fetch(event.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+          }
+          return networkResponse;
+        });
       })
     );
     return;
   }
 
-  // Cache-First for static assets (fonts, icons, vendor libraries)
+  // 2. STALE-WHILE-REVALIDATE: Dynamic App Assets (HTML, CSS, App JS)
+  // Delivers instant (0ms) render from local cache while silently updating in the background
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) return cachedResponse;
-      return fetch(event.request).then((networkResponse) => {
+      const fetchPromise = fetch(event.request).then((networkResponse) => {
         if (networkResponse && networkResponse.status === 200) {
           const responseClone = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
         }
         return networkResponse;
+      }).catch((err) => {
+        // Network offline or failed
+        if (!cachedResponse && event.request.mode === 'navigate') {
+          return caches.match('./index.html') || caches.match('./login.html');
+        }
+        return null;
       });
+
+      // If cached, return immediately for instant response; background fetch updates cache
+      return cachedResponse || fetchPromise;
     })
   );
 });

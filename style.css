@@ -329,6 +329,13 @@ button, input, select {
     overflow: hidden;
 }
 
+#admin-view.view-panel.active {
+    display: block;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+}
+
 /* Mobile sub-tabs — hidden on desktop/POS monitors */
 .mobile-cashier-tabs {
     display: none !important;
@@ -502,9 +509,7 @@ button, input, select {
     position: absolute;
     top: 5px;
     left: 5px;
-    background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    background: rgba(10, 15, 25, 0.85);
     border: 1px solid rgba(255, 255, 255, 0.22);
     padding: 2px 6px;
     border-radius: 4px;
@@ -518,9 +523,7 @@ button, input, select {
     position: absolute;
     bottom: 5px;
     right: 5px;
-    background: rgba(0, 0, 0, 0.65);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    background: rgba(10, 15, 25, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.15);
     color: #ffffff;
     font-family: monospace;
@@ -1269,6 +1272,7 @@ button, input, select {
     grid-template-columns: 240px 1fr;
     height: 100%;
     width: 100%;
+    overflow: hidden;
 }
 
 /* Admin left sidebar tabs */
@@ -1279,6 +1283,8 @@ button, input, select {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    overflow-y: auto;
+    height: 100%;
 }
 .admin-nav-btn {
     display: flex;
@@ -1332,13 +1338,16 @@ button, input, select {
     padding: 24px;
     overflow-y: auto;
     background: rgba(0, 0, 0, 0.08);
+    height: 100%;
+    min-height: 0;
 }
 .admin-tab-content {
     display: none;
-    animation: fadeInTab 0.35s ease;
+    animation: fadeInTab 0.2s ease;
 }
 .admin-tab-content.active {
     display: block;
+    min-height: 100%;
 }
 @keyframes fadeInTab {
     from { opacity: 0; transform: translateY(10px); }
@@ -2716,30 +2725,24 @@ button, input, select {
 /* Enhanced Modals */
 .modal-overlay {
     background: rgba(2, 2, 3, 0.8) !important;
-    backdrop-filter: blur(8px) !important;
-    -webkit-backdrop-filter: blur(8px) !important;
 }
 
 .modal-content {
-    background: rgba(15, 20, 30, 0.75) !important;
-    backdrop-filter: blur(24px) !important;
-    -webkit-backdrop-filter: blur(24px) !important;
+    background: #111827 !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
     box-shadow: 0 24px 50px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
-    animation: modalSpring 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;
+    animation: modalSpring 0.18s ease-out forwards !important;
 }
 
 @keyframes modalSpring {
-    0% { transform: scale(0.95); opacity: 0; }
+    0% { transform: scale(0.97); opacity: 0; }
     100% { transform: scale(1); opacity: 1; }
 }
 
 /* Enhanced POS Panel */
 .pos-checkout-panel {
-    background: rgba(10, 10, 15, 0.55) !important;
-    backdrop-filter: blur(24px) !important;
-    -webkit-backdrop-filter: blur(24px) !important;
-    border-left: 1px solid rgba(255, 255, 255, 0.05) !important;
+    background: #0f172a !important;
+    border-left: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
 /* Global Button Interactions */

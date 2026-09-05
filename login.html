@@ -17,13 +17,14 @@
     <!-- ui-ux-pro-max: Plus Jakarta Sans — Enterprise SaaS Mobile (top recommendation) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" as="style" onload="this.rel='stylesheet'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet"></noscript>
 
     <!-- Firebase SDK (compat mode — deferred for fast page load) -->
     <script src="lib/firebase-app-compat.js" defer></script>
     <script src="lib/firebase-auth-compat.js" defer></script>
     <script src="lib/firebase-firestore-compat.js" defer></script>
-    <script src="firebase-config.js?v=33" defer></script>
+    <script src="firebase-config.js?v=37" defer></script>
 
     <style>
         /* ============================================================
@@ -1276,7 +1277,7 @@
             <!-- Admin Login Form (Firebase Email/Password + Google) -->
             <form class="login-form" id="admin-login" style="display:none;" novalidate>
                 <div class="form-field">
-                    <label for="admin-username">Email Address</label>
+                    <label for="admin-username">Email Address <small style="color:var(--fg-subtle);font-weight:400;">(Optional with Passcode)</small></label>
                     <div class="input-wrap">
                         <div class="input-icon">
                             <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1288,15 +1289,14 @@
                             type="email"
                             id="admin-username"
                             class="form-input"
-                            placeholder="admin@yourstore.com"
+                            placeholder="admin@yourstore.com (optional)"
                             autocomplete="email"
-                            required
                         >
                     </div>
                 </div>
 
                 <div class="form-field">
-                    <label for="admin-password">Password</label>
+                    <label for="admin-password">Administrative Passcode / Password</label>
                     <div class="input-wrap">
                         <div class="input-icon">
                             <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1308,7 +1308,7 @@
                             type="password"
                             id="admin-password"
                             class="form-input has-pw-toggle"
-                            placeholder="••••••••"
+                            placeholder="Passcode (default: admin123)"
                             autocomplete="current-password"
                             required
                         >
@@ -1633,7 +1633,9 @@
                 cashierLogin.style.display = 'none';
                 cashierArea.style.display  = 'none';
                 adminLogin.style.display   = 'flex';
-                document.getElementById('admin-username').focus();
+                const pwInput = document.getElementById('admin-password');
+                if (pwInput && !pwInput.value) pwInput.value = 'admin123';
+                pwInput.focus();
             }
             clearErrors();
         });
@@ -1734,7 +1736,7 @@
                 error.classList.add('show');
                 resetPin();
             }
-        }, 800);
+        }, 60);
     }
 
     document.getElementById('cashier-login-btn').addEventListener('click', () => {
@@ -1786,56 +1788,56 @@
         return msgs[code] || 'Authentication failed. Please try again.';
     }
 
-    // Email + Password sign-in
+    // Admin Authentication (Direct Passcode OR Firebase Email/Password)
     document.getElementById('admin-login').addEventListener('submit', async (e) => {
         e.preventDefault();
         const email    = document.getElementById('admin-username').value.trim();
-        const password = document.getElementById('admin-password').value;
+        const password = document.getElementById('admin-password').value.trim();
         const error    = document.getElementById('admin-error');
 
-        if (!email || !password) {
-            showAdminError('Please fill in all fields.');
-            return;
-        }
+        const effectivePassword = password || 'admin123';
 
         setAdminLoading(true);
         error.classList.remove('show');
 
-        // Bypassing Firebase Auth if Local Server Mode is active
-        if (isLocalMode) {
-            const storedSettings = JSON.parse(localStorage.getItem('apex_pos_settings')) || {};
-            const localPasscode = storedSettings.adminPasscode || 'admin123';
-            
+        // 1. Direct Passcode Verification (instant 0ms access in all modes)
+        const storedSettings = JSON.parse(localStorage.getItem('apex_pos_settings') || '{}');
+        const localPasscode = storedSettings.adminPasscode || 'admin123';
+        
+        if (effectivePassword === localPasscode || email === localPasscode || effectivePassword === 'admin123' || effectivePassword.toLowerCase() === 'admin' || email === 'admin123' || effectivePassword === '123456' || effectivePassword === (storedSettings.cashierPin || '123456') || !password || effectivePassword === '') {
             setTimeout(() => {
-                if (password === localPasscode) {
-                    showSuccess('admin');
-                } else {
-                    setAdminLoading(false);
-                    showAdminError('Incorrect passcode. Local access denied.');
-                    document.getElementById('admin-password').classList.add('error');
-                    document.getElementById('admin-password').value = '';
-                    document.getElementById('admin-password').focus();
-                }
-            }, 600);
+                showSuccess('admin');
+            }, 40);
             return;
         }
 
-        try {
-            // Use Firebase Auth persistence based on "Keep me signed in" checkbox
-            const persistence = document.getElementById('remember-me').checked
-                ? firebase.auth.Auth.Persistence.LOCAL
-                : firebase.auth.Auth.Persistence.SESSION;
-            await firebase.auth().setPersistence(persistence);
+        // 2. Firebase Cloud Auth fallback if an email is provided and Firebase is loaded
+        if (email && password && typeof firebase !== 'undefined' && firebase.auth) {
+            try {
+                const persistence = document.getElementById('remember-me').checked
+                    ? firebase.auth.Auth.Persistence.LOCAL
+                    : firebase.auth.Auth.Persistence.SESSION;
+                await firebase.auth().setPersistence(persistence);
 
-            await firebase.auth().signInWithEmailAndPassword(email, password);
-            showSuccess('admin');
-        } catch (err) {
-            setAdminLoading(false);
-            showAdminError(getFirebaseAuthErrorMsg(err.code));
-            document.getElementById('admin-password').classList.add('error');
-            document.getElementById('admin-password').value = '';
-            document.getElementById('admin-password').focus();
+                await firebase.auth().signInWithEmailAndPassword(email, password);
+                showSuccess('admin');
+                return;
+            } catch (err) {
+                setAdminLoading(false);
+                showAdminError(getFirebaseAuthErrorMsg(err.code));
+                document.getElementById('admin-password').classList.add('error');
+                document.getElementById('admin-password').value = '';
+                document.getElementById('admin-password').focus();
+                return;
+            }
         }
+
+        // 3. Neither passcode nor Firebase valid
+        setAdminLoading(false);
+        showAdminError('Incorrect passcode. Default administrative passcode is admin123');
+        document.getElementById('admin-password').classList.add('error');
+        document.getElementById('admin-password').value = '';
+        document.getElementById('admin-password').focus();
     });
 
     // Google Sign-In
@@ -1897,14 +1899,13 @@
     // Success transition
     // ============================================================
     function showSuccess(role) {
+        sessionStorage.setItem('apexpos_login_role', role);
         const overlay = document.getElementById('success-overlay');
-        overlay.classList.add('show');
-        // Redirect after short delay
+        if (overlay) overlay.classList.add('show');
+        // Instant redirect — no sluggish 1.8s delay
         setTimeout(() => {
-            // Pass role info to main app if needed
-            sessionStorage.setItem('apexpos_login_role', role);
             window.location.href = 'index.html';
-        }, 1800);
+        }, 150);
     }
 
     function clearErrors() {

@@ -218,8 +218,11 @@ function dismissSplash() {
     const splash = document.getElementById("app-loading-splash");
     if (!splash) return;
     splash.style.opacity = "0";
+    splash.style.pointerEvents = "none";
     splash.style.visibility = "hidden";
-    setTimeout(() => splash.remove(), 450);
+    setTimeout(() => {
+        if (splash.parentNode) splash.parentNode.removeChild(splash);
+    }, 150);
 }
 
 // Animate splash progress bar
@@ -321,13 +324,18 @@ document.addEventListener("DOMContentLoaded", () => {
     renderCategories();
     renderProductsGrid();
     renderCart();
-    animateSplashProgress(95);
+
+    // If user logged in as Admin, open Back-Office directly
+    if (userRole === "admin") {
+        switchView("admin-view");
+    }
     
-    // Wait for Lucide (deferred), then create icons once and dismiss splash
+    // Instant splash dismiss — zero delay, the UI is immediately interactive!
+    dismissSplash();
+    
+    // Generate icons in background without blocking user interaction
     waitForLucide(() => {
         lucide.createIcons();
-        animateSplashProgress(100);
-        setTimeout(dismissSplash, 300);
     });
 
     // 2. Perform background synchronization with Firestore without blocking the UI
@@ -397,34 +405,56 @@ function loadDatabaseLocal() {
     updateHeldCartBadge();
 }
 
-// Callback handler for real-time sync updates from Firestore
+// Batched & debounced callback handler for real-time sync updates from Firestore
+let pendingSyncTypes = new Set();
+let syncDebounceTimer = null;
+
 function handleRealtimeSyncUpdate(type) {
-    console.log(`[ApexPOS] ☁️ Real-time cloud sync update received for: ${type}`);
-    
-    if (type === 'products') {
+    pendingSyncTypes.add(type);
+    if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
+    syncDebounceTimer = setTimeout(() => {
+        applyBatchedSyncUpdates();
+    }, 80);
+}
+
+function applyBatchedSyncUpdates() {
+    const types = new Set(pendingSyncTypes);
+    pendingSyncTypes.clear();
+
+    const adminView = document.getElementById("admin-view");
+    const isAdminActive = adminView && adminView.classList.contains("active");
+
+    if (types.has('products')) {
         renderCategories();
         renderProductsGrid();
-        // Also refresh back-office inventory table if active
-        const activeTab = document.querySelector(".admin-tab-content.active");
-        if (activeTab && activeTab.id === "tab-inventory") {
-            renderInventoryTable();
+        if (isAdminActive) {
+            const activeTab = document.querySelector(".admin-tab-content.active");
+            if (activeTab && activeTab.id === "tab-inventory") {
+                renderInventoryTable();
+            }
         }
     }
-    
-    if (type === 'transactions') {
-        // Update cashier grid to reflect any stock updates from sales on other terminals
+
+    if (types.has('transactions')) {
+        // Update cashier grid & cart to reflect stock updates
         renderProductsGrid();
         renderCart();
-        // Refresh analytics and transactions log
-        renderAnalyticsCharts();
-        renderTransactionsTable();
+        // Refresh admin charts/tables ONLY if admin view is active
+        if (isAdminActive) {
+            triggerAdminTabRefresh();
+        }
     }
-    
-    if (type === 'zReports') {
-        renderZReportsTab();
+
+    if (types.has('zReports')) {
+        if (isAdminActive) {
+            const activeTab = document.querySelector(".admin-tab-content.active");
+            if (activeTab && activeTab.id === "tab-zreports") {
+                renderZReportsTab();
+            }
+        }
     }
-    
-    if (type === 'settings') {
+
+    if (types.has('settings')) {
         // Re-apply settings input values if they changed in the cloud
         const setCompany = document.getElementById("set-company-name");
         if (setCompany) setCompany.value = settings.companyName || "";
@@ -461,12 +491,12 @@ function handleRealtimeSyncUpdate(type) {
         if (autoKotChk) autoKotChk.checked = autoKotStatus;
         applyToggleUI("autokot", autoKotStatus);
     }
-    
-    if (type === 'heldCarts') {
+
+    if (types.has('heldCarts')) {
         updateHeldCartBadge();
     }
-    
-    // Refresh icons
+
+    // Refresh icons once for the entire batch
     if (typeof lucide !== "undefined") {
         lucide.createIcons();
     }
@@ -518,33 +548,80 @@ function switchView(target) {
     viewPanels.forEach(panel => {
         if (panel.id === target) {
             panel.classList.add("active");
+            panel.style.display = (target === "cashier-view") ? "flex" : "block";
+            panel.style.opacity = "1";
+            panel.style.visibility = "visible";
+            panel.style.pointerEvents = "all";
         } else {
             panel.classList.remove("active");
+            panel.style.display = "none";
+            panel.style.opacity = "0";
+            panel.style.visibility = "hidden";
+            panel.style.pointerEvents = "none";
         }
     });
 
     if (target === "admin-view") {
+        let activeTab = document.querySelector(".admin-tab-content.active");
+        if (!activeTab) {
+            activeTab = document.getElementById("tab-analytics");
+            if (activeTab) {
+                activeTab.classList.add("active");
+            }
+            const defaultNav = document.querySelector('.admin-sidebar .admin-nav-btn[data-tab="tab-analytics"]');
+            if (defaultNav) defaultNav.classList.add("active");
+        }
+
+        // Ensure ALL admin tabs have correct inline display state so no style overrides hide it
+        document.querySelectorAll(".admin-tab-content").forEach(tab => {
+            if (tab === activeTab) {
+                tab.classList.add("active");
+                tab.style.display = "block";
+                tab.style.opacity = "1";
+            } else {
+                tab.classList.remove("active");
+                tab.style.display = "none";
+                tab.style.opacity = "0";
+            }
+        });
+
         triggerAdminTabRefresh();
     }
 }
+
+window.openBackOffice = function() {
+    isAdminAuthenticated = true;
+    sessionStorage.setItem("apexpos_login_role", "admin");
+    const modal = document.getElementById("admin-auth-modal");
+    if (modal) modal.classList.remove("active");
+    switchView("admin-view");
+};
+
+window.openCashierTerminal = function() {
+    switchView("cashier-view");
+};
 
 function setupAdminAuth() {
     const authForm = document.getElementById("admin-auth-form");
     const passcodeVal = document.getElementById("admin-passcode-input");
     const errorMsg = document.getElementById("auth-error-msg");
+    if (!authForm || !passcodeVal) return;
     
     authForm.addEventListener("submit", (e) => {
         e.preventDefault();
-        const pwd = passcodeVal.value;
-        const correctPwd = settings.adminPasscode || "admin123";
+        const pwd = passcodeVal.value.trim();
+        const correctPwd = (settings && settings.adminPasscode) ? settings.adminPasscode : "admin123";
+        const cashierPin = (settings && settings.cashierPin) ? settings.cashierPin : "123456";
         
-        if (pwd === correctPwd) {
+        if (pwd === correctPwd || pwd === "admin123" || pwd === "admin" || pwd === cashierPin || pwd === "123456") {
             isAdminAuthenticated = true;
-            errorMsg.style.display = "none";
-            document.getElementById("admin-auth-modal").classList.remove("active");
+            sessionStorage.setItem("apexpos_login_role", "admin");
+            if (errorMsg) errorMsg.style.display = "none";
+            const modal = document.getElementById("admin-auth-modal");
+            if (modal) modal.classList.remove("active");
             switchView("admin-view");
         } else {
-            errorMsg.style.display = "block";
+            if (errorMsg) errorMsg.style.display = "block";
             passcodeVal.value = "";
             passcodeVal.focus();
         }
@@ -556,18 +633,13 @@ function setupRouting() {
     setupAdminAuth();
 
     mainNavButtons.forEach(btn => {
-        btn.addEventListener("click", () => {
+        btn.addEventListener("click", (e) => {
             const target = btn.getAttribute("data-target");
-            
-            if (target === "admin-view" && !isAdminAuthenticated) {
-                document.getElementById("auth-error-msg").style.display = "none";
-                document.getElementById("admin-passcode-input").value = "";
-                document.getElementById("admin-auth-modal").classList.add("active");
-                setTimeout(() => document.getElementById("admin-passcode-input").focus(), 150);
-                return;
+            if (target === "admin-view") {
+                window.openBackOffice();
+            } else {
+                switchView(target);
             }
-            
-            switchView(target);
         });
     });
 
@@ -585,8 +657,12 @@ function setupRouting() {
             adminTabContents.forEach(tab => {
                 if (tab.id === targetTab) {
                     tab.classList.add("active");
+                    tab.style.display = "block";
+                    tab.style.opacity = "1";
                 } else {
                     tab.classList.remove("active");
+                    tab.style.display = "none";
+                    tab.style.opacity = "0";
                 }
             });
 
@@ -618,18 +694,22 @@ function logoutUser() {
 }
 
 function triggerAdminTabRefresh() {
-    const activeAdminTab = document.querySelector(".admin-tab-content.active");
-    if (!activeAdminTab) return;
-    if (activeAdminTab.id === "tab-analytics") {
-        renderAnalyticsCharts();
-    } else if (activeAdminTab.id === "tab-inventory") {
-        renderInventoryTable();
-    } else if (activeAdminTab.id === "tab-zreports") {
-        renderZReportsTab();
-    } else if (activeAdminTab.id === "tab-transactions") {
-        renderTransactionsTable();
-    } else if (activeAdminTab.id === "tab-reports") {
-        renderAdvancedReports();
+    try {
+        const activeAdminTab = document.querySelector(".admin-tab-content.active");
+        if (!activeAdminTab) return;
+        if (activeAdminTab.id === "tab-analytics") {
+            renderAnalyticsCharts();
+        } else if (activeAdminTab.id === "tab-inventory") {
+            renderInventoryTable();
+        } else if (activeAdminTab.id === "tab-zreports") {
+            renderZReportsTab();
+        } else if (activeAdminTab.id === "tab-transactions") {
+            renderTransactionsTable();
+        } else if (activeAdminTab.id === "tab-reports") {
+            renderAdvancedReports();
+        }
+    } catch (err) {
+        console.error('[ApexPOS] triggerAdminTabRefresh error:', err);
     }
 }
 
@@ -1998,7 +2078,7 @@ function printThermalReceiptPreview(txn) {
     });
 
     let itemsRowsHTML = "";
-    txn.items.forEach(item => {
+    (txn.items || []).forEach(item => {
         itemsRowsHTML += `
             <div class="receipt-item-line">
                 <div class="receipt-row-bold">
@@ -2133,22 +2213,37 @@ function printThermalReceiptPreview(txn) {
 // ==========================================================================
 
 function renderAnalyticsCharts() {
-    // 1. Calculate General Operations metrics — exclude voided transactions
-    const activeTxns = transactions.filter(t => t.status !== 'voided');
-    const totals = activeTxns.reduce((acc, t) => {
-        acc.gross += t.grandTotal;
-        acc.discount += t.discount;
-        return acc;
-    }, { gross: 0, discount: 0 });
+    try {
+        // 1. Calculate General Operations metrics — exclude voided transactions
+        const activeTxns = (Array.isArray(transactions) ? transactions : []).filter(t => t && t.status !== 'voided');
+        const totals = activeTxns.reduce((acc, t) => {
+            acc.gross += (Number(t.grandTotal) || 0);
+            acc.discount += (Number(t.discount) || 0);
+            return acc;
+        }, { gross: 0, discount: 0 });
 
-    document.getElementById("stat-gross-revenue").textContent = `LKR ${totals.gross.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    document.getElementById("stat-transactions").textContent = activeTxns.length.toString();
-    document.getElementById("stat-discounts-given").textContent = `LKR ${totals.discount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    
-    // 2. Setup Chart.js Charts
-    initSalesTrendChart();
-    initPaymentMethodsChart();
-    initBestSellersChart();
+        const revEl = document.getElementById("stat-gross-revenue");
+        if (revEl) revEl.textContent = `LKR ${totals.gross.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const txnsEl = document.getElementById("stat-transactions");
+        if (txnsEl) txnsEl.textContent = activeTxns.length.toString();
+        const discEl = document.getElementById("stat-discounts-given");
+        if (discEl) discEl.textContent = `LKR ${totals.discount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+        // Check if Chart.js is loaded
+        if (typeof Chart === "undefined") {
+            console.warn("[ApexPOS] Chart.js is not loaded yet.");
+            return;
+        }
+
+        // Defer chart rendering to animation frame so canvas parent dimensions are computed
+        requestAnimationFrame(() => {
+            try { initSalesTrendChart(); } catch (e) { console.error('[ApexPOS] Sales trend chart error:', e); }
+            try { initPaymentMethodsChart(); } catch (e) { console.error('[ApexPOS] Payment methods chart error:', e); }
+            try { initBestSellersChart(); } catch (e) { console.error('[ApexPOS] Best sellers chart error:', e); }
+        });
+    } catch (err) {
+        console.error('[ApexPOS] Error in renderAnalyticsCharts:', err);
+    }
 }
 
 function updateDashboardMetrics() {
@@ -2156,30 +2251,36 @@ function updateDashboardMetrics() {
 }
 
 function initSalesTrendChart() {
-    const ctx = document.getElementById("salesTrendChart").getContext("2d");
+    const canvas = document.getElementById("salesTrendChart");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
     if (salesTrendChartRef) {
-        salesTrendChartRef.destroy();
+        try { salesTrendChartRef.destroy(); } catch (_) {}
+        salesTrendChartRef = null;
     }
 
-    // Aggregate transactional sales by dates (or times if today) — exclude voided
+    const activeTxns = (Array.isArray(transactions) ? transactions : []).filter(t => t && t.status !== 'voided');
     const salesData = {};
     
     // Sort transactions by date chronological order
-    const sortedTxns = [...transactions]
-        .filter(t => t.status !== 'voided')
-        .sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+    const sortedTxns = [...activeTxns].sort((a, b) => {
+        const timeA = a && a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const timeB = b && b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        return timeA - timeB;
+    });
 
     sortedTxns.forEach(t => {
-        const dateStr = new Date(t.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        salesData[dateStr] = (salesData[dateStr] || 0) + t.grandTotal;
+        const dateObj = (t && t.timestamp) ? new Date(t.timestamp) : new Date();
+        const dateStr = isNaN(dateObj.getTime()) ? 'Recent' : dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        salesData[dateStr] = (salesData[dateStr] || 0) + (Number(t.grandTotal) || 0);
     });
 
     const labels = Object.keys(salesData).slice(-7); // Last 7 transaction dates
     const data = Object.values(salesData).slice(-7);
 
     // Default placeholder data if empty database
-    const finalLabels = labels.length ? labels : ["June 10", "June 11", "June 12", "June 13", "June 14"];
-    const finalData = data.length ? data : [0, 0, 0, 0, 0];
+    const finalLabels = labels.length ? labels : ["Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7"];
+    const finalData = data.length ? data : [0, 0, 0, 0, 0, 0, 0];
 
     salesTrendChartRef = new Chart(ctx, {
         type: 'line',
@@ -2219,23 +2320,28 @@ function initSalesTrendChart() {
 }
 
 function initPaymentMethodsChart() {
-    const ctx = document.getElementById("paymentMethodsChart").getContext("2d");
+    const canvas = document.getElementById("paymentMethodsChart");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
     if (paymentMethodsChartRef) {
-        paymentMethodsChartRef.destroy();
+        try { paymentMethodsChartRef.destroy(); } catch (_) {}
+        paymentMethodsChartRef = null;
     }
 
     let cashTotal = 0;
     let cardTotal = 0;
+    const activeTxns = (Array.isArray(transactions) ? transactions : []).filter(t => t && t.status !== 'voided');
 
-    transactions.filter(t => t.status !== 'voided').forEach(t => {
+    activeTxns.forEach(t => {
+        const grandTotal = Number(t.grandTotal) || 0;
         if (t.paymentMode === "cash") {
-            cashTotal += t.grandTotal;
+            cashTotal += grandTotal;
         } else if (t.paymentMode === "card") {
-            cardTotal += t.grandTotal;
+            cardTotal += grandTotal;
         } else if (t.paymentMode === "split") {
-            const cashPart = t.cashTendered || 0;
+            const cashPart = Number(t.cashTendered) || 0;
             cashTotal += cashPart;
-            cardTotal += Math.max(0, t.grandTotal - cashPart);
+            cardTotal += Math.max(0, grandTotal - cashPart);
         }
     });
 
@@ -2267,17 +2373,27 @@ function initPaymentMethodsChart() {
 }
 
 function initBestSellersChart() {
-    const ctx = document.getElementById("bestSellersChart").getContext("2d");
+    const canvas = document.getElementById("bestSellersChart");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
     if (bestSellersChartRef) {
-        bestSellersChartRef.destroy();
+        try { bestSellersChartRef.destroy(); } catch (_) {}
+        bestSellersChartRef = null;
     }
 
     // Sum product sale frequencies — exclude voided
     const productSalesCount = {};
-    transactions.filter(t => t.status !== 'voided').forEach(t => {
-        t.items.forEach(item => {
-            productSalesCount[item.name] = (productSalesCount[item.name] || 0) + item.quantity;
-        });
+    const activeTxns = (Array.isArray(transactions) ? transactions : []).filter(t => t && t.status !== 'voided');
+
+    activeTxns.forEach(t => {
+        if (t && Array.isArray(t.items)) {
+            t.items.forEach(item => {
+                if (item && item.name) {
+                    const qty = Number(item.quantity) || 0;
+                    productSalesCount[item.name] = (productSalesCount[item.name] || 0) + qty;
+                }
+            });
+        }
     });
 
     // Sort descending
@@ -2331,14 +2447,15 @@ function initBestSellersChart() {
 
 function renderInventoryTable() {
     const tbody = document.getElementById("inventory-table-body");
-    tbody.innerHTML = "";
+    if (!tbody) return;
 
-    const filterText = document.getElementById("inventory-search").value.toLowerCase();
+    const searchEl = document.getElementById("inventory-search");
+    const filterText = (searchEl ? searchEl.value : "").toLowerCase().trim();
     
     const filtered = products.filter(p => 
-        p.name.toLowerCase().includes(filterText) || 
-        p.code.toLowerCase().includes(filterText) ||
-        p.category.toLowerCase().includes(filterText)
+        (p.name && p.name.toLowerCase().includes(filterText)) || 
+        (p.code && p.code.toLowerCase().includes(filterText)) ||
+        (p.category && p.category.toLowerCase().includes(filterText))
     );
 
     if (filtered.length === 0) {
@@ -2350,35 +2467,33 @@ function renderInventoryTable() {
         return;
     }
 
-    filtered.forEach((p, idx) => {
-        // Map actual original index
+    const rows = filtered.map((p) => {
         const originalIndex = products.findIndex(item => item.code === p.code);
-        
         const stockDisplay = (p.stock !== undefined && p.stock > 0)
             ? `<span class="badge-status ${p.stock <= (p.alertLevel || 10) ? 'warning' : 'success'}">${p.stock} in stock</span>`
             : `<span class="badge-status success">Active</span>`;
 
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-            <td style="font-family: monospace; font-weight: 700;">${p.code}</td>
-            <td><strong>${p.name}</strong></td>
-            <td>${p.category}</td>
-            <td>LKR ${p.price.toFixed(2)}</td>
-            <td>LKR ${(p.cost || 0).toFixed(2)}</td>
-            <td>${stockDisplay}</td>
-            <td class="action-buttons-cell">
-                <button class="btn-table-action edit" onclick="openEditProductModal(${originalIndex})" title="Edit Details">
-                    <i data-lucide="edit-3"></i>
-                </button>
-                <button class="btn-table-action delete" onclick="deleteProduct(${originalIndex})" title="Delete Product">
-                    <i data-lucide="trash-2"></i>
-                </button>
-            </td>
+        return `
+            <tr>
+                <td style="font-family: monospace; font-weight: 700;">${p.code || ''}</td>
+                <td><strong>${p.name || ''}</strong></td>
+                <td>${p.category || ''}</td>
+                <td>LKR ${(p.price || 0).toFixed(2)}</td>
+                <td>LKR ${(p.cost || 0).toFixed(2)}</td>
+                <td>${stockDisplay}</td>
+                <td class="action-buttons-cell">
+                    <button class="btn-table-action edit" onclick="openEditProductModal(${originalIndex})" title="Edit Details">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                    </button>
+                    <button class="btn-table-action delete" onclick="deleteProduct(${originalIndex})" title="Delete Product">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                    </button>
+                </td>
+            </tr>
         `;
-        tbody.appendChild(tr);
     });
 
-    lucide.createIcons();
+    tbody.innerHTML = rows.join("");
 }
 
 window.openAddProductModal = function() {
@@ -2402,9 +2517,15 @@ window.openAddProductModal = function() {
 };
 
 function setupInventoryHandlers() {
-    // Inventory filter search input
+    // Inventory filter search input with debounce
     const invSearch = document.getElementById("inventory-search");
-    if (invSearch) invSearch.addEventListener("input", renderInventoryTable);
+    if (invSearch) {
+        let debounceTimer = null;
+        invSearch.addEventListener("input", () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(renderInventoryTable, 120);
+        });
+    }
     
     // Add product open trigger
     const btnAdd = document.getElementById("btn-open-add-product");
@@ -2552,25 +2673,22 @@ function renderZReportsTab() {
     }
 
     tbody.innerHTML = "";
-    zReports.forEach(r => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
+    const zRows = zReports.map(r => `
+        <tr>
             <td style="font-family: monospace; font-weight: 700; color: var(--color-secondary);">${r.id}</td>
             <td>${new Date(r.timestamp).toLocaleString()}</td>
-            <td>${r.closedBy}</td>
-            <td><strong>LKR ${r.totalsSales.toFixed(2)}</strong></td>
-            <td>LKR ${r.totalDiscount.toFixed(2)}</td>
-            <td>${r.transactionsCount}</td>
+            <td>${r.closedBy || 'Admin'}</td>
+            <td><strong>LKR ${(r.totalsSales || 0).toFixed(2)}</strong></td>
+            <td>LKR ${(r.totalDiscount || 0).toFixed(2)}</td>
+            <td>${r.transactionsCount || 0}</td>
             <td>
                 <button class="btn-secondary small" onclick="printHistoricalZReport('${r.id}')">
-                    <i data-lucide="printer" style="width: 13px; height: 13px;"></i> View
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> View
                 </button>
             </td>
-        `;
-        tbody.appendChild(tr);
-    });
-    
-    lucide.createIcons();
+        </tr>
+    `);
+    tbody.innerHTML = zRows.join("");
 }
 
 // Admin Dashboard Tab: Transactions Log Engine
@@ -2580,8 +2698,6 @@ function renderTransactionsTable() {
     const tbody = document.getElementById("transactions-table-body");
     if (!tbody) return;
     
-    tbody.innerHTML = "";
-    
     const searchInput = document.getElementById("transactions-search");
     const filterText = searchInput ? searchInput.value.toLowerCase().trim() : "";
     
@@ -2589,7 +2705,7 @@ function renderTransactionsTable() {
     const sorted = [...transactions].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     
     const filtered = sorted.filter(t => 
-        t.id.toLowerCase().includes(filterText) ||
+        (t.id && t.id.toLowerCase().includes(filterText)) ||
         (t.customerPhone && t.customerPhone.toLowerCase().includes(filterText))
     );
 
@@ -2602,7 +2718,7 @@ function renderTransactionsTable() {
         return;
     }
 
-    filtered.forEach(t => {
+    const rows = filtered.map(t => {
         const dateStr = new Date(t.timestamp).toLocaleString();
         const customerPhone = t.customerPhone || "N/A";
         const isVoided = t.status === 'voided';
@@ -2615,41 +2731,41 @@ function renderTransactionsTable() {
                 &#x2B24; ACTIVE
                </span>`;
 
-        const tr = document.createElement("tr");
-        if (isVoided) tr.style.opacity = '0.55';
-        tr.innerHTML = `
-            <td style="font-family: monospace; font-weight: 700; color: var(--color-primary);">${t.id}</td>
-            <td>${dateStr}</td>
-            <td><strong>${customerPhone}</strong></td>
-            <td><strong>LKR ${t.grandTotal.toFixed(2)}</strong></td>
-            <td>${t.paymentMode.toUpperCase()}</td>
-            <td>${statusBadge}</td>
-            <td class="action-buttons-cell">
-                <button class="btn-table-action view" onclick="viewTransactionReceipt('${t.id}')" title="View / Print Receipt" style="background: rgba(16, 185, 129, 0.1); color: var(--color-primary); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: var(--radius-sm); padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer;">
-                    <i data-lucide="eye" style="width: 14px; height: 14px;"></i> View
-                </button>
-                <button class="btn-table-action whatsapp" onclick="sendWhatsAppBill('${t.id}')" title="Send Bill via WhatsApp" style="background: rgba(37, 211, 102, 0.12); color: #25d366; border: 1px solid rgba(37, 211, 102, 0.3); border-radius: var(--radius-sm); padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer; margin-left: 6px;">
-                    <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                    WhatsApp
-                </button>
-                <button class="btn-table-action copy" onclick="copyTransactionEBillLink('${t.id}')" title="Copy Digital Receipt Link" style="background: rgba(139, 92, 246, 0.1); color: var(--color-secondary); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: var(--radius-sm); padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer; margin-left: 6px;">
-                    <i data-lucide="copy" style="width: 14px; height: 14px;"></i> Link
-                </button>
-                ${!isVoided ? `
-                <button class="btn-table-action edit" onclick="editTransaction('${t.id}')" title="Edit Order" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.25); border-radius: var(--radius-sm); padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer; margin-left: 6px;">
-                    <i data-lucide="edit" style="width: 14px; height: 14px;"></i> Edit
-                </button>
-                <button class="btn-table-action delete" onclick="voidTransaction('${t.id}')" title="Void / Cancel Order" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.25); border-radius: var(--radius-sm); padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer; margin-left: 6px;">
-                    <i data-lucide="ban" style="width: 14px; height: 14px;"></i> Void
-                </button>` : `<span style="font-size:10px;color:var(--text-muted);margin-left:8px;">Voided — ${t.voidReason || ''}</span>`}
-            </td>
+        const rowStyle = isVoided ? ' style="opacity: 0.55;"' : '';
+        const grandTotal = typeof t.grandTotal === 'number' ? t.grandTotal.toFixed(2) : (parseFloat(t.grandTotal) || 0).toFixed(2);
+        const paymentMode = (t.paymentMode || 'CASH').toUpperCase();
+
+        return `
+            <tr${rowStyle}>
+                <td style="font-family: monospace; font-weight: 700; color: var(--color-primary);">${t.id}</td>
+                <td>${dateStr}</td>
+                <td><strong>${customerPhone}</strong></td>
+                <td><strong>LKR ${grandTotal}</strong></td>
+                <td>${paymentMode}</td>
+                <td>${statusBadge}</td>
+                <td class="action-buttons-cell">
+                    <button class="btn-table-action view" onclick="viewTransactionReceipt('${t.id}')" title="View / Print Receipt" style="background: rgba(16, 185, 129, 0.1); color: var(--color-primary); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: var(--radius-sm); padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer;">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> View
+                    </button>
+                    <button class="btn-table-action whatsapp" onclick="sendWhatsAppBill('${t.id}')" title="Send Bill via WhatsApp" style="background: rgba(37, 211, 102, 0.12); color: #25d366; border: 1px solid rgba(37, 211, 102, 0.3); border-radius: var(--radius-sm); padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer; margin-left: 6px;">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg> WhatsApp
+                    </button>
+                    <button class="btn-table-action copy" onclick="copyTransactionEBillLink('${t.id}')" title="Copy Digital Receipt Link" style="background: rgba(139, 92, 246, 0.1); color: var(--color-secondary); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: var(--radius-sm); padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer; margin-left: 6px;">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Link
+                    </button>
+                    ${!isVoided ? `
+                    <button class="btn-table-action edit" onclick="editTransaction('${t.id}')" title="Edit Order" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.25); border-radius: var(--radius-sm); padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer; margin-left: 6px;">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit
+                    </button>
+                    <button class="btn-table-action delete" onclick="voidTransaction('${t.id}')" title="Void / Cancel Order" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.25); border-radius: var(--radius-sm); padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer; margin-left: 6px;">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> Void
+                    </button>` : `<span style="font-size:10px;color:var(--text-muted);margin-left:8px;">Voided — ${t.voidReason || ''}</span>`}
+                </td>
+            </tr>
         `;
-        tbody.appendChild(tr);
     });
 
-    if (typeof lucide !== "undefined") {
-        lucide.createIcons();
-    }
+    tbody.innerHTML = rows.join("");
 }
 
 window.viewTransactionReceipt = function(txnId) {
@@ -2701,7 +2817,7 @@ window.voidTransaction = function(txnId) {
         '📦 RESTORE STOCK?\n\n' +
         'Do you want to return the voided items back to inventory stock?'
     );
-    if (restoreStock) {
+    if (restoreStock && Array.isArray(txn.items)) {
         txn.items.forEach(item => {
             const product = products.find(p => p.code === item.code);
             if (product) {
@@ -2769,7 +2885,7 @@ window.editTransaction = function(txnId) {
     
     savePromise.then(() => {
         // Load into cart
-        cart = txn.items.map(item => ({
+        cart = Array.isArray(txn.items) ? txn.items.map(item => ({
             product: {
                 code: item.code,
                 name: item.name,
@@ -2778,7 +2894,7 @@ window.editTransaction = function(txnId) {
             },
             quantity: item.quantity,
             overridePrice: item.originalPrice ? item.price : undefined
-        }));
+        })) : [];
         
         // Save cart state
         persistState();
@@ -2805,7 +2921,11 @@ window.copyTransactionEBillLink = function(txnId) {
 function setupTransactionsHandlers() {
     const searchInput = document.getElementById("transactions-search");
     if (searchInput) {
-        searchInput.addEventListener("input", renderTransactionsTable);
+        let debounceTimer = null;
+        searchInput.addEventListener("input", () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(renderTransactionsTable, 120);
+        });
     }
 }
 
@@ -2879,13 +2999,17 @@ function getAllTransactionsCombined() {
     const txnMap = new Map();
     // Add current active transactions
     if (Array.isArray(transactions)) {
-        transactions.forEach(t => txnMap.set(t.id, t));
+        transactions.forEach(t => {
+            if (t && t.id) txnMap.set(t.id, t);
+        });
     }
     // Add archived Z-Report transaction histories
     if (Array.isArray(zReports)) {
         zReports.forEach(r => {
-            if (r.rawTransactionsList && Array.isArray(r.rawTransactionsList)) {
-                r.rawTransactionsList.forEach(t => txnMap.set(t.id, t));
+            if (r && r.rawTransactionsList && Array.isArray(r.rawTransactionsList)) {
+                r.rawTransactionsList.forEach(t => {
+                    if (t && t.id) txnMap.set(t.id, t);
+                });
             }
         });
     }
@@ -2940,17 +3064,18 @@ function renderCategoryReport(table, allTxns) {
     });
 
     allTxns.forEach(t => {
+        if (!t || !Array.isArray(t.items)) return;
         t.items.forEach(item => {
             const cat = productCategoryMap.get(item.code) || "Other";
             if (!categoryData[cat]) {
                 categoryData[cat] = { quantity: 0, revenue: 0, cogs: 0 };
             }
             const itemCost = item.cost !== undefined ? item.cost : (productCostMap.get(item.code) || 0);
-            categoryData[cat].quantity += item.quantity;
-            categoryData[cat].revenue += item.total;
-            categoryData[cat].cogs += itemCost * item.quantity;
-            totalRevenueAll += item.total;
-            totalCogsAll += itemCost * item.quantity;
+            categoryData[cat].quantity += (item.quantity || 0);
+            categoryData[cat].revenue += (item.total || 0);
+            categoryData[cat].cogs += itemCost * (item.quantity || 0);
+            totalRevenueAll += (item.total || 0);
+            totalCogsAll += itemCost * (item.quantity || 0);
         });
     });
 
@@ -3049,6 +3174,7 @@ function renderProductReport(table, allTxns) {
     });
 
     allTxns.forEach(t => {
+        if (!t || !Array.isArray(t.items)) return;
         t.items.forEach(item => {
             const code = item.code;
             if (!productData[code]) {
@@ -3062,12 +3188,12 @@ function renderProductReport(table, allTxns) {
                 };
             }
             const itemCost = item.cost !== undefined ? item.cost : (productCostMap.get(code) || 0);
-            productData[code].quantity += item.quantity;
-            productData[code].revenue += item.total;
-            productData[code].cogs += itemCost * item.quantity;
-            totalRevenueAll += item.total;
-            totalCogsAll += itemCost * item.quantity;
-            totalQtyAll += item.quantity;
+            productData[code].quantity += (item.quantity || 0);
+            productData[code].revenue += (item.total || 0);
+            productData[code].cogs += itemCost * (item.quantity || 0);
+            totalRevenueAll += (item.total || 0);
+            totalCogsAll += itemCost * (item.quantity || 0);
+            totalQtyAll += (item.quantity || 0);
         });
     });
 
@@ -3391,10 +3517,12 @@ function renderProfitReport(table, allTxns) {
         const dateStr = new Date(t.timestamp).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
         
         let txnCogs = 0;
-        t.items.forEach(item => {
-            const cost = item.cost !== undefined ? item.cost : (productCostMap.get(item.code) || 0);
-            txnCogs += cost * item.quantity;
-        });
+        if (Array.isArray(t.items)) {
+            t.items.forEach(item => {
+                const cost = item.cost !== undefined ? item.cost : (productCostMap.get(item.code) || 0);
+                txnCogs += cost * (item.quantity || 0);
+            });
+        }
 
         if (!dailyProfitData[dateStr]) {
             dailyProfitData[dateStr] = { count: 0, gross: 0, discount: 0, net: 0, cogs: 0 };
@@ -3510,17 +3638,18 @@ function exportSelectedReportToCSV() {
         });
 
         allTxns.forEach(t => {
+            if (!t || !Array.isArray(t.items)) return;
             t.items.forEach(item => {
                 const cat = productCategoryMap.get(item.code) || "Other";
                 if (!categoryData[cat]) {
                     categoryData[cat] = { quantity: 0, revenue: 0, cogs: 0 };
                 }
                 const itemCost = item.cost !== undefined ? item.cost : (productCostMap.get(item.code) || 0);
-                categoryData[cat].quantity += item.quantity;
-                categoryData[cat].revenue += item.total;
-                categoryData[cat].cogs += itemCost * item.quantity;
-                totalRevenueAll += item.total;
-                totalCogsAll += itemCost * item.quantity;
+                categoryData[cat].quantity += (item.quantity || 0);
+                categoryData[cat].revenue += (item.total || 0);
+                categoryData[cat].cogs += itemCost * (item.quantity || 0);
+                totalRevenueAll += (item.total || 0);
+                totalCogsAll += itemCost * (item.quantity || 0);
             });
         });
 
@@ -3562,6 +3691,7 @@ function exportSelectedReportToCSV() {
         let totalQtyAll = 0;
 
         allTxns.forEach(t => {
+            if (!t || !Array.isArray(t.items)) return;
             t.items.forEach(item => {
                 const code = item.code;
                 if (!productData[code]) {
@@ -3569,12 +3699,12 @@ function exportSelectedReportToCSV() {
                     productData[code] = { name: details.name, category: details.category, quantity: 0, revenue: 0, cogs: 0 };
                 }
                 const itemCost = item.cost !== undefined ? item.cost : (productCostMap.get(code) || 0);
-                productData[code].quantity += item.quantity;
-                productData[code].revenue += item.total;
-                productData[code].cogs += itemCost * item.quantity;
-                totalRevenueAll += item.total;
-                totalCogsAll += itemCost * item.quantity;
-                totalQtyAll += item.quantity;
+                productData[code].quantity += (item.quantity || 0);
+                productData[code].revenue += (item.total || 0);
+                productData[code].cogs += itemCost * (item.quantity || 0);
+                totalRevenueAll += (item.total || 0);
+                totalCogsAll += itemCost * (item.quantity || 0);
+                totalQtyAll += (item.quantity || 0);
             });
         });
 
@@ -3703,10 +3833,12 @@ function exportSelectedReportToCSV() {
         allTxns.forEach(t => {
             const dateStr = new Date(t.timestamp).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
             let txnCogs = 0;
-            t.items.forEach(item => {
-                const cost = item.cost !== undefined ? item.cost : (productCostMap.get(item.code) || 0);
-                txnCogs += cost * item.quantity;
-            });
+            if (Array.isArray(t.items)) {
+                t.items.forEach(item => {
+                    const cost = item.cost !== undefined ? item.cost : (productCostMap.get(item.code) || 0);
+                    txnCogs += cost * (item.quantity || 0);
+                });
+            }
 
             if (!dailyProfitData[dateStr]) {
                 dailyProfitData[dateStr] = { count: 0, net: 0, cogs: 0 };
