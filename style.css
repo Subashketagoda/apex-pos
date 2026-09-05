@@ -3014,4 +3014,59 @@ input:focus, select:focus, textarea:focus {
     font-weight: 600;
 }
 
+/* ==========================================================================
+   Bookmark & Quick Access Shortcut Styles
+   ========================================================================== */
+.btn-bookmark {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 13px;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #fbbf24;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
+    white-space: nowrap;
+}
+
+.btn-bookmark:hover {
+    background: #f59e0b;
+    color: #0b1120;
+    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4);
+    transform: translateY(-1px);
+}
+
+.kbd-badge {
+    display: inline-block;
+    padding: 4px 9px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 6px;
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
+    letter-spacing: 0.5px;
+}
+
+.bookmark-shortcut-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(234, 179, 8, 0.05));
+    border: 1px dashed rgba(245, 158, 11, 0.4);
+    border-radius: var(--radius-md);
+    margin-bottom: 16px;
+    text-align: center;
+}
+
 

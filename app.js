@@ -4649,6 +4649,53 @@ window.addEventListener('appinstalled', () => {
     window.closeChromeOSModal();
 });
 
+window.openBookmarkModal = function() {
+    const modal = document.getElementById('bookmark-modal');
+    if (modal) {
+        modal.classList.add('active');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+};
+
+window.closeBookmarkModal = function() {
+    const modal = document.getElementById('bookmark-modal');
+    if (modal) modal.classList.remove('active');
+};
+
+window.copyBookmarkLink = function() {
+    const copyInput = document.getElementById('bookmark-copy-url');
+    const url = copyInput ? copyInput.value : window.location.origin;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(() => {
+            const status = document.getElementById('bookmark-copy-status');
+            if (status) status.innerText = '✅ Link copied! Press Ctrl+D to bookmark.';
+            if (typeof showToast === 'function') showToast('📋 Link copied to clipboard! Press Ctrl+D to bookmark.');
+        }).catch(() => fallbackCopy(url));
+    } else {
+        fallbackCopy(url);
+    }
+};
+
+function fallbackCopy(text) {
+    const copyInput = document.getElementById('bookmark-copy-url');
+    if (copyInput) {
+        copyInput.select();
+        document.execCommand('copy');
+        const status = document.getElementById('bookmark-copy-status');
+        if (status) status.innerText = '✅ Link copied! Press Ctrl+D to bookmark.';
+        if (typeof showToast === 'function') showToast('📋 Link copied to clipboard!');
+    }
+}
+
+// Global Ctrl+D capture helper toast
+document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'd' || e.key === 'D')) {
+        if (typeof showToast === 'function') {
+            showToast('⭐ ApexPOS Bookmark added! Access anytime from your bookmarks bar.');
+        }
+    }
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     const headerPwaBtn = document.getElementById('btn-install-pwa');
     if (headerPwaBtn) {
