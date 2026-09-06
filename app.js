@@ -281,12 +281,16 @@ function waitForLucide(callback) {
     if (typeof lucide !== "undefined") {
         callback();
     } else {
+        let attempts = 0;
         const check = setInterval(() => {
+            attempts++;
             if (typeof lucide !== "undefined") {
                 clearInterval(check);
                 callback();
+            } else if (attempts > 60) {
+                clearInterval(check);
             }
-        }, 20);
+        }, 50);
     }
 }
 
@@ -494,11 +498,6 @@ function applyBatchedSyncUpdates() {
 
     if (types.has('heldCarts')) {
         updateHeldCartBadge();
-    }
-
-    // Refresh icons once for the entire batch
-    if (typeof lucide !== "undefined") {
-        lucide.createIcons();
     }
 }
 
@@ -717,21 +716,25 @@ function triggerAdminTabRefresh() {
 function initClock() {
     const timeEl = document.getElementById("current-time");
     const dateEl = document.getElementById("current-date");
+    if (!timeEl || !dateEl) return;
     
+    let lastDateKey = "";
     function tick() {
         const now = new Date();
-        // Time format: HH:MM:SS AM/PM
         let hours = now.getHours();
         const minutes = String(now.getMinutes()).padStart(2, '0');
         const seconds = String(now.getSeconds()).padStart(2, '0');
         const ampm = hours >= 12 ? 'PM' : 'AM';
-        hours = hours % 12;
-        hours = hours ? hours : 12; // 0 should be 12
+        hours = hours % 12 || 12;
         
         timeEl.textContent = `${hours}:${minutes}:${seconds} ${ampm}`;
         
-        const options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
-        dateEl.textContent = now.toLocaleDateString('en-US', options);
+        const dayKey = now.toDateString();
+        if (dayKey !== lastDateKey) {
+            lastDateKey = dayKey;
+            const options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
+            dateEl.textContent = now.toLocaleDateString('en-US', options);
+        }
     }
     
     tick();
@@ -2301,6 +2304,7 @@ function initSalesTrendChart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            animation: false,
             plugins: {
                 legend: { display: false },
                 tooltip: { backgroundColor: '#1e293b', titleColor: '#fff', bodyColor: '#94a3b8' }
@@ -2361,6 +2365,7 @@ function initPaymentMethodsChart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            animation: false,
             plugins: {
                 legend: {
                     position: 'bottom',
@@ -2422,6 +2427,7 @@ function initBestSellersChart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            animation: false,
             plugins: {
                 legend: { display: false }
             },
@@ -3038,7 +3044,7 @@ function renderAdvancedReports() {
     }
     
     if (typeof lucide !== "undefined") {
-        lucide.createIcons();
+        lucide.createIcons({ root: table });
     }
 }
 

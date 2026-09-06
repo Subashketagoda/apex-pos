@@ -1,14 +1,14 @@
-const CACHE_NAME = 'apexpos-pwa-v17';
+const CACHE_NAME = 'apexpos-pwa-v18';
 const ASSETS = [
   './',
   './index.html',
   './login.html',
   './receipt.html',
   './customer.html',
-  './style.css?v=37',
-  './app.js?v=37',
-  './db.js?v=37',
-  './firebase-config.js?v=37',
+  './style.css?v=38',
+  './app.js?v=38',
+  './db.js?v=38',
+  './firebase-config.js?v=38',
   './manifest.json',
   './lib/lucide.min.js',
   './lib/chart.umd.js',
